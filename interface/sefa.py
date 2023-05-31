@@ -270,7 +270,9 @@ def main():
 #     np.random.seed(123)
 #     torch.manual_seed(123)  
 
-    session_uuid = str(uuid.uuid4())
+    if 'session_uuid' not in st.session_state:
+        st.session_state['session_uuid'] = str(uuid.uuid4())
+    session_uuid = st.session_state['session_uuid']
 
     option = st.sidebar.selectbox(
     'Select a preset sample',

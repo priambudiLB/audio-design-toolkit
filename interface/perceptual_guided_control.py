@@ -137,7 +137,9 @@ def main():
 
     st.markdown("<h2 style='text-align: center;'>Audio Texture Generation <br/>Guided by Semantic Prototypes</h2>", unsafe_allow_html=True)
 
-    session_uuid = str(uuid.uuid4())
+    if 'session_uuid' not in st.session_state:
+        st.session_state['session_uuid'] = str(uuid.uuid4())
+    session_uuid = st.session_state['session_uuid']
 
     G, netE = get_dimcontrol_model()
     if 'G' not in st.session_state:

@@ -299,7 +299,9 @@ def main():
     somehtml = '<h1 style="text-align:center">Analysis-Synthesis In The Latent Space</h1>'
     st.markdown(somehtml, unsafe_allow_html=True)
 
-    session_uuid = str(uuid.uuid4())
+    if 'session_uuid' not in st.session_state:
+        st.session_state['session_uuid'] = str(uuid.uuid4())
+    session_uuid = st.session_state['session_uuid']
 
     G, netE = get_model()
     if 'gaver_G' not in st.session_state:
