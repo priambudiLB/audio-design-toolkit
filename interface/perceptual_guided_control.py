@@ -15,6 +15,7 @@ from networks import stylegan_encoder
 import time
 import warnings
 warnings.filterwarnings("ignore", category=DeprecationWarning) 
+import uuid
 
 
 def get_vector(x):
@@ -76,7 +77,7 @@ def get_concept_directions():
 
     return brightness_vector, rate_vector, impacttype_vector
 
-def sample(pos):
+def sample(pos, session_uuid=''):
     G = st.session_state['G']
     netE = st.session_state['netE']
 
@@ -109,11 +110,11 @@ def sample(pos):
                         newshape=(int(fig.bbox.bounds[3]), int(fig.bbox.bounds[2]), -1))
     io_buf.close()
 
-    sf.write('/tmp/temp_audio_loc.wav', audio.astype(float), 16000)
+    sf.write(f'/tmp/{session_uuid}_temp_audio_loc.wav', audio.astype(float), 16000)
     print('--------------------------------------------------')
 
 
-    audio_file = open('/tmp/temp_audio_loc.wav', 'rb')
+    audio_file = open(f'/tmp/{session_uuid}_temp_audio_loc.wav', 'rb')
     audio_bytes = audio_file.read()
 
     return img_arr, audio_bytes
@@ -136,6 +137,7 @@ def main():
 
     st.markdown("<h2 style='text-align: center;'>Audio Texture Generation <br/>Guided by Semantic Prototypes</h2>", unsafe_allow_html=True)
 
+    session_uuid = str(uuid.uuid4())
 
     G, netE = get_dimcontrol_model()
     if 'G' not in st.session_state:
@@ -163,7 +165,7 @@ def main():
 
     
 
-    s = sample([birghtness_position, rate_position, impacttype_position])
+    s = sample([birghtness_position, rate_position, impacttype_position], session_uuid=session_uuid)
     spectrogram_placeholder.image(s[0],width=700)
     audio_placeholder.audio(s[1], format="audio/wav", start_time=0)
 

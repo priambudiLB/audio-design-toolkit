@@ -41,6 +41,7 @@ import time
 import warnings
 warnings.filterwarnings("ignore", category=DeprecationWarning) 
 
+import uuid
 
 # st.title('Analysis-Synthesis')
 somehtml = '<h1 style="text-align:center">Analysis-Synthesis In The Latent Space</h1>'
@@ -134,7 +135,8 @@ def butter_bandpass_filter(data, highcut, fs,lowcut=None,  order=5, btype='bandp
 def get_gaver_sounds(initial_amplitude, impulse_time, filters, total_time=2, locs=None, \
                              sample_rate=16000, hittype='hit', 
                              damping_mult=None, damping_fade_expo=None, 
-                             filter_order=None):
+                             filter_order=None,
+                             session_uuid=''):
     
     y_scratch = np.random.rand(int(impulse_time*sample_rate))
     
@@ -179,8 +181,8 @@ def get_gaver_sounds(initial_amplitude, impulse_time, filters, total_time=2, loc
         signal[start_loc:end_loc] = y_scratch_
 
     signal = signal/np.max(signal)
-    sf.write('/tmp/temp_signal_loc.wav', signal.astype(float), 16000)
-    audio_file = open('/tmp/temp_signal_loc.wav', 'rb')
+    sf.write(f'/tmp/{session_uuid}_temp_signal_loc.wav', signal.astype(float), 16000)
+    audio_file = open(f'/tmp/{session_uuid}_temp_signal_loc.wav', 'rb')
     audio_bytes = audio_file.read()
     
     fig =plt.figure(figsize=(7, 5))
@@ -192,9 +194,9 @@ def get_gaver_sounds(initial_amplitude, impulse_time, filters, total_time=2, loc
                         newshape=(int(fig.bbox.bounds[3]), int(fig.bbox.bounds[2]), -1))
     io_buf.close()
 
-    st.session_state['gaver_audio_loc'] = '/tmp/temp_signal_loc.wav'
+    st.session_state['gaver_audio_loc'] = f'/tmp/{session_uuid}_temp_signal_loc.wav'
 
-    return audio_bytes, img_arr#, '/tmp/temp_signal_loc.wav'
+    return audio_bytes, img_arr#, '/tmp/{session_uuid}_temp_signal_loc.wav'
 
 @st.cache_data
 def get_model():
@@ -264,7 +266,7 @@ def encode_and_reconstruct(audio):
     return encoded, reconstructed_audio_wav
 
 
-def sample():
+def sample(session_uuid=''):
     audio_loc = st.session_state['gaver_audio_loc']
 
     audio, sr = librosa.load(audio_loc, sr=16000)
@@ -273,8 +275,8 @@ def sample():
 
     encoded, reconstructed_audio_wav = encode_and_reconstruct(audio)
 
-    sf.write('/tmp/reconstructed_audio_wav_recon.wav', reconstructed_audio_wav.astype(float), 16000)
-    audio_file = open('/tmp/reconstructed_audio_wav_recon.wav', 'rb')
+    sf.write(f'/tmp/{session_uuid}_reconstructed_audio_wav_recon.wav', reconstructed_audio_wav.astype(float), 16000)
+    audio_file = open(f'/tmp/{session_uuid}_reconstructed_audio_wav_recon.wav', 'rb')
     audio_bytes = audio_file.read()
     
     fig =plt.figure(figsize=(7, 5))
@@ -296,6 +298,8 @@ def main():
 
     somehtml = '<h1 style="text-align:center">Analysis-Synthesis In The Latent Space</h1>'
     st.markdown(somehtml, unsafe_allow_html=True)
+
+    session_uuid = str(uuid.uuid4())
 
     G, netE = get_model()
     if 'gaver_G' not in st.session_state:
@@ -341,7 +345,8 @@ def main():
 
     s, s_pghi = get_gaver_sounds(initial_amplitude=1.0, hittype=impact_type, total_time=2.0, impulse_time=impulse_time, sample_rate=16000,\
                         filters=[(attack_lf, attack_hf), (trial_lf, trial_hf)], locs=locs[rate],\
-                        filter_order=filter_order, damping_mult=damping_mult, damping_fade_expo=damping_fade_expo)
+                        filter_order=filter_order, damping_mult=damping_mult, damping_fade_expo=damping_fade_expo,
+                        session_uuid=session_uuid)
     
     if 'gaver_audio_bytes' not in st.session_state:
         st.session_state['gaver_audio_bytes'] = byte_array = bytes([])
@@ -359,7 +364,7 @@ def main():
     with col2:
         vert_space = '<div style="padding: 40%;"></div>'
         st.markdown(vert_space, unsafe_allow_html=True)
-        st.button("**Query Latent Space** =>", on_click=sample, type='primary')
+        st.button("**Query Latent Space** =>", on_click=sample(session_uuid), type='primary')
     with col3:
         colname = '<div style="padding-left: 30%;"><h3><b><i>Reconstructed Audio</i></b></h3></div>'
         st.markdown(colname, unsafe_allow_html=True)
