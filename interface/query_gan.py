@@ -181,8 +181,8 @@ def get_gaver_sounds(initial_amplitude, impulse_time, filters, total_time=2, loc
         signal[start_loc:end_loc] = y_scratch_
 
     signal = signal/np.max(signal)
-    sf.write(f'/tmp/{session_uuid}_temp_signal_loc.wav', signal.astype(float), 16000)
-    audio_file = open(f'/tmp/{session_uuid}_temp_signal_loc.wav', 'rb')
+    sf.write(f'/tmp/audio-design-toolkit/query_gan/{session_uuid}_temp_signal_loc.wav', signal.astype(float), 16000)
+    audio_file = open(f'/tmp/audio-design-toolkit/query_gan/{session_uuid}_temp_signal_loc.wav', 'rb')
     audio_bytes = audio_file.read()
     
     fig =plt.figure(figsize=(7, 5))
@@ -194,9 +194,9 @@ def get_gaver_sounds(initial_amplitude, impulse_time, filters, total_time=2, loc
                         newshape=(int(fig.bbox.bounds[3]), int(fig.bbox.bounds[2]), -1))
     io_buf.close()
 
-    st.session_state['gaver_audio_loc'] = f'/tmp/{session_uuid}_temp_signal_loc.wav'
+    st.session_state['gaver_audio_loc'] = f'/tmp/audio-design-toolkit/query_gan/{session_uuid}_temp_signal_loc.wav'
 
-    return audio_bytes, img_arr#, '/tmp/{session_uuid}_temp_signal_loc.wav'
+    return audio_bytes, img_arr#, '/tmp/audio-design-toolkit/query_gan/{session_uuid}_temp_signal_loc.wav'
 
 @st.cache_data
 def get_model():
@@ -275,8 +275,8 @@ def sample(session_uuid=''):
 
     encoded, reconstructed_audio_wav = encode_and_reconstruct(audio)
 
-    sf.write(f'/tmp/{session_uuid}_reconstructed_audio_wav_recon.wav', reconstructed_audio_wav.astype(float), 16000)
-    audio_file = open(f'/tmp/{session_uuid}_reconstructed_audio_wav_recon.wav', 'rb')
+    sf.write(f'/tmp/audio-design-toolkit/query_gan/{session_uuid}_reconstructed_audio_wav_recon.wav', reconstructed_audio_wav.astype(float), 16000)
+    audio_file = open(f'/tmp/audio-design-toolkit/query_gan/{session_uuid}_reconstructed_audio_wav_recon.wav', 'rb')
     audio_bytes = audio_file.read()
     
     fig =plt.figure(figsize=(7, 5))

@@ -216,11 +216,11 @@ def sample(pos, session_uuid=''):
     #audio = pcm2wav(16000, audio)
     # print(audio)
 
-    sf.write(f'{session_uuid}_sefa_interface_temp_audio_loc.wav', audio.astype(float), 16000)
+    sf.write(f'/tmp/audio-design-toolkit/sefa/{session_uuid}_sefa_interface_temp_audio_loc.wav', audio.astype(float), 16000)
     print('--------------------------------------------------')
 
 
-    audio_file = open(f'{session_uuid}_sefa_interface_temp_audio_loc.wav', 'rb')
+    audio_file = open(f'/tmp/audio-design-toolkit/sefa/{session_uuid}_sefa_interface_temp_audio_loc.wav', 'rb')
     audio_bytes = audio_file.read()
 
     # print(audio_bytes)
@@ -245,7 +245,7 @@ def draw_audio():
 
 #     audio_placeholder = st.empty()
 #     audio_str = '''
-#     <audio id="audio" controls="" autoplay src="http://localhost:8000/{session_uuid}_sefa_interface_temp_audio_loc.wav" class="stAudio" style="width: 704px;">
+#     <audio id="audio" controls="" autoplay src="http://localhost:8000/tmp/audio-design-toolkit/sefa/{session_uuid}_sefa_interface_temp_audio_loc.wav" class="stAudio" style="width: 704px;">
 #     </audio>
 #     '''
 #     audio_placeholder.markdown(audio_str, unsafe_allow_html=True)
