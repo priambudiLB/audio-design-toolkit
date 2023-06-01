@@ -216,6 +216,7 @@ def sample(pos, session_uuid=''):
     #audio = pcm2wav(16000, audio)
     # print(audio)
 
+    os.makedirs('/tmp/audio-design-toolkit/sefa/', exist_ok=True)
     sf.write(f'/tmp/audio-design-toolkit/sefa/{session_uuid}_sefa_interface_temp_audio_loc.wav', audio.astype(float), 16000)
     print('--------------------------------------------------')
 

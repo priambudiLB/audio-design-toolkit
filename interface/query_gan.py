@@ -181,6 +181,7 @@ def get_gaver_sounds(initial_amplitude, impulse_time, filters, total_time=2, loc
         signal[start_loc:end_loc] = y_scratch_
 
     signal = signal/np.max(signal)
+    os.makedirs('/tmp/audio-design-toolkit/query_gan/', exist_ok=True)
     sf.write(f'/tmp/audio-design-toolkit/query_gan/{session_uuid}_temp_signal_loc.wav', signal.astype(float), 16000)
     audio_file = open(f'/tmp/audio-design-toolkit/query_gan/{session_uuid}_temp_signal_loc.wav', 'rb')
     audio_bytes = audio_file.read()
@@ -275,6 +276,7 @@ def sample(session_uuid=''):
 
     encoded, reconstructed_audio_wav = encode_and_reconstruct(audio)
 
+    os.makedirs('/tmp/audio-design-toolkit/query_gan/', exist_ok=True)
     sf.write(f'/tmp/audio-design-toolkit/query_gan/{session_uuid}_reconstructed_audio_wav_recon.wav', reconstructed_audio_wav.astype(float), 16000)
     audio_file = open(f'/tmp/audio-design-toolkit/query_gan/{session_uuid}_reconstructed_audio_wav_recon.wav', 'rb')
     audio_bytes = audio_file.read()

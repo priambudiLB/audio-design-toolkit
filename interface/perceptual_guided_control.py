@@ -110,6 +110,7 @@ def sample(pos, session_uuid=''):
                         newshape=(int(fig.bbox.bounds[3]), int(fig.bbox.bounds[2]), -1))
     io_buf.close()
 
+    os.makedirs('/tmp/audio-design-toolkit/perceptual_guided_control/', exist_ok=True)
     sf.write(f'/tmp/audio-design-toolkit/perceptual_guided_control/{session_uuid}_temp_audio_loc.wav', audio.astype(float), 16000)
     print('--------------------------------------------------')
 
