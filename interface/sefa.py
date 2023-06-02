@@ -35,6 +35,8 @@ import time
 import warnings
 warnings.filterwarnings("ignore", category=DeprecationWarning) 
 
+import uuid
+
 # st.markdown("<h1 style='text-align: center;'>Semantic Factorization (From Computer Vision)</h1>", unsafe_allow_html=True)
 # st.title('Semantic Factorization (From Computer Vision)')
 
@@ -136,7 +138,7 @@ def get_sefa_model():
             st.session_state['sefa_G'] = G
     return st.session_state['sefa_G']
 
-def sample(pos):
+def sample(pos, session_uuid=''):
     truncation_psi = 1.0
 
 
@@ -214,11 +216,12 @@ def sample(pos):
     #audio = pcm2wav(16000, audio)
     # print(audio)
 
-    sf.write('sefa_interface_temp_audio_loc.wav', audio.astype(float), 16000)
+    os.makedirs('/tmp/audio-design-toolkit/sefa/', exist_ok=True)
+    sf.write(f'/tmp/audio-design-toolkit/sefa/{session_uuid}_sefa_interface_temp_audio_loc.wav', audio.astype(float), 16000)
     print('--------------------------------------------------')
 
 
-    audio_file = open('sefa_interface_temp_audio_loc.wav', 'rb')
+    audio_file = open(f'/tmp/audio-design-toolkit/sefa/{session_uuid}_sefa_interface_temp_audio_loc.wav', 'rb')
     audio_bytes = audio_file.read()
 
     # print(audio_bytes)
@@ -243,7 +246,7 @@ def draw_audio():
 
 #     audio_placeholder = st.empty()
 #     audio_str = '''
-#     <audio id="audio" controls="" autoplay src="http://localhost:8000/sefa_interface_temp_audio_loc.wav" class="stAudio" style="width: 704px;">
+#     <audio id="audio" controls="" autoplay src="http://localhost:8000/tmp/audio-design-toolkit/sefa/{session_uuid}_sefa_interface_temp_audio_loc.wav" class="stAudio" style="width: 704px;">
 #     </audio>
 #     '''
 #     audio_placeholder.markdown(audio_str, unsafe_allow_html=True)
@@ -267,6 +270,10 @@ def main():
     st.markdown("<h1 style='text-align: center;'>Semantic Factorization <br/>(Adapted From Computer Vision)</h1>", unsafe_allow_html=True)
 #     np.random.seed(123)
 #     torch.manual_seed(123)  
+
+    if 'session_uuid' not in st.session_state:
+        st.session_state['session_uuid'] = str(uuid.uuid4())
+    session_uuid = st.session_state['session_uuid']
 
     option = st.sidebar.selectbox(
     'Select a preset sample',
@@ -304,7 +311,7 @@ def main():
 
 
     s = sample([slider_1_position, slider_2_position,slider_3_position, slider_4_position,slider_5_position,\
-        slider_6_position, slider_7_position,slider_8_position, slider_9_position,slider_10_position])
+        slider_6_position, slider_7_position,slider_8_position, slider_9_position,slider_10_position], session_uuid=session_uuid)
     spectrogram_placeholder.image(s[0])
     audio_element = audio_placeholder.audio(s[1], format="audio/wav", start_time=0)
     # print(audio_element)
