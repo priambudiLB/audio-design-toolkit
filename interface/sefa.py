@@ -23,6 +23,7 @@ import librosa
 import librosa.display
 import soundfile as sf
 
+from utils import util
 from tifresi.utils import load_signal
 from tifresi.utils import preprocess_signal
 from tifresi.stft import GaussTF, GaussTruncTF
@@ -36,22 +37,20 @@ import warnings
 warnings.filterwarnings("ignore", category=DeprecationWarning) 
 
 import uuid
+from argparse import Namespace
 
 # st.markdown("<h1 style='text-align: center;'>Semantic Factorization (From Computer Vision)</h1>", unsafe_allow_html=True)
 # st.title('Semantic Factorization (From Computer Vision)')
 
-
+config = util.get_config('../config/config.json')
+config = Namespace(**dict(**config))
 
 def pghi_istft(x):
-    stft_channels = 512
-    n_frames = 256
-    hop_size = 128
-    sample_rate = 16000
     use_truncated_window = True
     if use_truncated_window:
-        stft_system = GaussTruncTF(hop_size=hop_size, stft_channels=stft_channels)
+        stft_system = GaussTruncTF(hop_size=config.hop_size, stft_channels=config.stft_channels)
     else:
-        stft_system = GaussTF(hop_size=hop_size, stft_channels=stft_channels)
+        stft_system = GaussTF(hop_size=config.hop_size, stft_channels=config.stft_channels)
 
     x = np.squeeze(x,axis=0)
     new_Y = inv_log_spectrogram(x)
@@ -121,12 +120,12 @@ def get_sefa_model():
     # # network_pkl = 'training-runs/chitra-00004-vis-data-256-split-auto1-noaug/network-snapshot-00{checkpoint_num}.pkl'.format(checkpoint_num=checkpoint_num)
 
     print('getting model')
-    stylegan_pkl = "../checkpoints/stylegan2/greatesthits/network-snapshot-002800.pkl"
+    stylegan_pkl = config.ckpt_stylegan2_path
 
-    stylegan_pkl_url = "https://guided-control-by-prototypes.s3.ap-southeast-1.amazonaws.com/resources/model_weights/audio-stylegan2/greatesthits/network-snapshot-002800.pkl"
+    stylegan_pkl_url = config.stylegan_pkl_url
 
     if not os.path.isfile(stylegan_pkl):
-        os.makedirs("../checkpoints/stylegan2/greatesthits/", exist_ok=True)
+        os.makedirs(config.ckpt_download_stylegan2_path, exist_ok=True)
         urllib.request.urlretrieve(stylegan_pkl_url, stylegan_pkl)
 
     G = None
@@ -139,9 +138,6 @@ def get_sefa_model():
     return st.session_state['sefa_G']
 
 def sample(pos, session_uuid=''):
-    truncation_psi = 1.0
-
-
     device = torch.device('cuda')
     G = get_sefa_model().to(device).eval()
 
@@ -216,12 +212,12 @@ def sample(pos, session_uuid=''):
     #audio = pcm2wav(16000, audio)
     # print(audio)
 
-    os.makedirs('/tmp/audio-design-toolkit/sefa/', exist_ok=True)
-    sf.write(f'/tmp/audio-design-toolkit/sefa/{session_uuid}_sefa_interface_temp_audio_loc.wav', audio.astype(float), 16000)
+    os.makedirs(config.sefa_tmp_audio_loc_path, exist_ok=True)
+    sf.write(f'{config.sefa_tmp_audio_loc_path}{session_uuid}_sefa_interface_temp_audio_loc.wav', audio.astype(float), 16000)
     print('--------------------------------------------------')
 
 
-    audio_file = open(f'/tmp/audio-design-toolkit/sefa/{session_uuid}_sefa_interface_temp_audio_loc.wav', 'rb')
+    audio_file = open(f'{config.sefa_tmp_audio_loc_path}{session_uuid}_sefa_interface_temp_audio_loc.wav', 'rb')
     audio_bytes = audio_file.read()
 
     # print(audio_bytes)

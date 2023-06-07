@@ -16,6 +16,10 @@ import time
 import warnings
 warnings.filterwarnings("ignore", category=DeprecationWarning) 
 import uuid
+from argparse import Namespace
+
+config = util.get_config('../config/config.json')
+config = Namespace(**dict(**config))
 
 
 def get_vector(x):
@@ -28,24 +32,24 @@ def reconstruct(encoded):
     reconstructed_audio = torch.cat([reconstructed_audio, filler], dim=2)
     reconstructed_audio = util.renormalize(reconstructed_audio, (torch.min(reconstructed_audio), torch.max(reconstructed_audio)), (-50, 0))
     reconstructed_audio = reconstructed_audio.detach().cpu().numpy()[0]
-    reconstructed_audio_wav = util.pghi_istft(reconstructed_audio, hop_size=128, stft_channels=512)
+    reconstructed_audio_wav = util.pghi_istft(reconstructed_audio, hop_size=config.hop_size, stft_channels=config.stft_channels)
     return reconstructed_audio_wav, reconstructed_audio
 
 @st.cache_data
 def get_dimcontrol_model():
     print('getting model')
-    stylegan_pkl = "../checkpoints/stylegan2/greatesthits/network-snapshot-002800.pkl"
-    encoder_pkl = "../checkpoints/encoder/greatesthits/netE_epoch_best.pth"
+    stylegan_pkl = config.ckpt_stylegan2_path
+    encoder_pkl = config.ckpt_encoder_path
 
-    stylegan_pkl_url = "https://guided-control-by-prototypes.s3.ap-southeast-1.amazonaws.com/resources/model_weights/audio-stylegan2/greatesthits/network-snapshot-002800.pkl"
-    encoder_pkl_url = "https://guided-control-by-prototypes.s3.ap-southeast-1.amazonaws.com/resources/model_weights/encoder/greatesthits/netE_epoch_best.pth"
+    stylegan_pkl_url = config.stylegan_pkl_url
+    encoder_pkl_url = config.encoder_pkl_url
 
     if not os.path.isfile(stylegan_pkl):
-        os.makedirs("../checkpoints/stylegan2/greatesthits/", exist_ok=True)
+        os.makedirs(config.ckpt_download_stylegan2_path, exist_ok=True)
         urllib.request.urlretrieve(stylegan_pkl_url, stylegan_pkl)
 
     if not os.path.isfile(encoder_pkl):
-        os.makedirs("../checkpoints/encoder/greatesthits/", exist_ok=True)
+        os.makedirs(config.ckpt_download_encoder_path, exist_ok=True)
         urllib.request.urlretrieve(encoder_pkl_url, encoder_pkl)
 
     G = None
@@ -64,6 +68,7 @@ def get_dimcontrol_model():
                                                    ckpt_path=encoder_pkl).eval().cuda()
     return G, netE
 
+# for hits & scratches right now
 @st.cache_data
 def get_concept_directions():
     brightness_vector = np.load('direction_vectors/brightness.npy')
@@ -102,7 +107,7 @@ def sample(pos, session_uuid=''):
     print("--- Time taken to synthesize from G and invert using PGHI = %s seconds ---" % (time.time() - start_time))
     
     fig =plt.figure(figsize=(7, 5))
-    a=librosa.display.specshow(img_1[0],x_axis='time', y_axis='linear',sr=16000)
+    a=librosa.display.specshow(img_1[0],x_axis='time', y_axis='linear',sr=config.sample_rate)
     io_buf = io.BytesIO()
     fig.savefig(io_buf, format='raw')
     io_buf.seek(0)
@@ -110,12 +115,12 @@ def sample(pos, session_uuid=''):
                         newshape=(int(fig.bbox.bounds[3]), int(fig.bbox.bounds[2]), -1))
     io_buf.close()
 
-    os.makedirs('/tmp/audio-design-toolkit/perceptual_guided_control/', exist_ok=True)
-    sf.write(f'/tmp/audio-design-toolkit/perceptual_guided_control/{session_uuid}_temp_audio_loc.wav', audio.astype(float), 16000)
+    os.makedirs(config.pgc_tmp_audio_loc_path, exist_ok=True)
+    sf.write(f'{config.pgc_tmp_audio_loc_path}{session_uuid}_temp_audio_loc.wav', audio.astype(float), 16000)
     print('--------------------------------------------------')
 
 
-    audio_file = open(f'/tmp/audio-design-toolkit/perceptual_guided_control/{session_uuid}_temp_audio_loc.wav', 'rb')
+    audio_file = open(f'{config.pgc_tmp_audio_loc_path}{session_uuid}_temp_audio_loc.wav', 'rb')
     audio_bytes = audio_file.read()
 
     return img_arr, audio_bytes
