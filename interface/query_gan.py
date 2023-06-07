@@ -42,30 +42,24 @@ import warnings
 warnings.filterwarnings("ignore", category=DeprecationWarning) 
 
 import uuid
+from argparse import Namespace
 
 # st.title('Analysis-Synthesis')
 somehtml = '<h1 style="text-align:center">Analysis-Synthesis In The Latent Space</h1>'
 # st.markdown(somehtml, unsafe_allow_html=True)
 # st.title("Analysis-Synthesis In The Latent Space")
 
-def pghi_stft(x):
-    stft_channels = 512
-    n_frames = 256
-    hop_size = 128
-    sample_rate = 16000
+config = util.get_config('../config/config.json')
+config = Namespace(**dict(**config))
 
-    stft_system = GaussTruncTF(hop_size=hop_size, stft_channels=stft_channels)
+def pghi_stft(x):
+    stft_system = GaussTruncTF(hop_size=config.hop_size, stft_channels=config.stft_channels)
     Y = stft_system.spectrogram(x)
     log_Y= log_spectrogram(Y)
     return np.expand_dims(log_Y, axis=0)
 
 def pghi_istft(x):
-    stft_channels = 512
-    n_frames = 256
-    hop_size = 128
-    sample_rate = 16000
-
-    stft_system = GaussTruncTF(hop_size=hop_size, stft_channels=stft_channels)
+    stft_system = GaussTruncTF(hop_size=config.hop_size, stft_channels=config.stft_channels)
     x = np.squeeze(x,axis=0)
     new_Y = inv_log_spectrogram(x)
     new_y = stft_system.invert_spectrogram(new_Y)
@@ -90,13 +84,8 @@ def get_vector(x):
     return torch.from_numpy(x).float().cuda()
 
 def get_spectrogram(audio):
-    stft_channels = 512
-    n_frames = 256
-    hop_size = 128
-    sample_rate = 16000
-
     audio_pghi = preprocess_signal(audio)
-    audio_pghi = zeropad(audio_pghi, n_frames * hop_size )
+    audio_pghi = zeropad(audio_pghi, config.n_frames * config.hop_size )
     audio_pghi = pghi_stft(audio_pghi)
     return audio_pghi
 
@@ -133,7 +122,7 @@ def butter_bandpass_filter(data, highcut, fs,lowcut=None,  order=5, btype='bandp
     return y
 
 def get_gaver_sounds(initial_amplitude, impulse_time, filters, total_time=2, locs=None, \
-                             sample_rate=16000, hittype='hit', 
+                             sample_rate=config.sample_rate, hittype='hit', 
                              damping_mult=None, damping_fade_expo=None, 
                              filter_order=None,
                              session_uuid=''):
@@ -181,13 +170,13 @@ def get_gaver_sounds(initial_amplitude, impulse_time, filters, total_time=2, loc
         signal[start_loc:end_loc] = y_scratch_
 
     signal = signal/np.max(signal)
-    os.makedirs('/tmp/audio-design-toolkit/query_gan/', exist_ok=True)
-    sf.write(f'/tmp/audio-design-toolkit/query_gan/{session_uuid}_temp_signal_loc.wav', signal.astype(float), 16000)
-    audio_file = open(f'/tmp/audio-design-toolkit/query_gan/{session_uuid}_temp_signal_loc.wav', 'rb')
+    os.makedirs(config.query_gan_tmp_audio_loc_path, exist_ok=True)
+    sf.write(f'{config.query_gan_tmp_audio_loc_path}{session_uuid}_temp_signal_loc.wav', signal.astype(float), 16000)
+    audio_file = open(f'{config.query_gan_tmp_audio_loc_path}{session_uuid}_temp_signal_loc.wav', 'rb')
     audio_bytes = audio_file.read()
     
     fig =plt.figure(figsize=(7, 5))
-    a=librosa.display.specshow(get_spectrogram(signal)[0],x_axis='time', y_axis='linear',sr=16000, hop_length=128)
+    a=librosa.display.specshow(get_spectrogram(signal)[0],x_axis='time', y_axis='linear',sr=config.sample_rate, hop_length=128)
     io_buf = io.BytesIO()
     fig.savefig(io_buf, format='raw')
     io_buf.seek(0)
@@ -200,36 +189,42 @@ def get_gaver_sounds(initial_amplitude, impulse_time, filters, total_time=2, loc
     return audio_bytes, img_arr#, '/tmp/audio-design-toolkit/query_gan/{session_uuid}_temp_signal_loc.wav'
 
 @st.cache_data
-def get_model():
-    print('getting model')
-    stylegan_pkl = "../checkpoints/stylegan2/greatesthits/network-snapshot-002800.pkl"
-    encoder_pkl = "../checkpoints/encoder/greatesthits/netE_epoch_best.pth"
+def get_model(model):
+    print('getting model', model)
+    if model == 'Hits & Scratches':
+        stylegan_pkl = config.ckpt_stylegan2_path
+        encoder_pkl = config.ckpt_encoder_path
 
-    stylegan_pkl_url = "https://guided-control-by-prototypes.s3.ap-southeast-1.amazonaws.com/resources/model_weights/audio-stylegan2/greatesthits/network-snapshot-002800.pkl"
-    encoder_pkl_url = "https://guided-control-by-prototypes.s3.ap-southeast-1.amazonaws.com/resources/model_weights/encoder/greatesthits/netE_epoch_best.pth"
+        stylegan_pkl_url = config.stylegan_pkl_url
+        encoder_pkl_url = config.encoder_pkl_url
+    elif model == 'Environmental Sounds':
+        stylegan_pkl = config.ckpt_stylegan2_path
+        encoder_pkl = config.ckpt_encoder_path
+
+        stylegan_pkl_url = config.stylegan_pkl_url
+        encoder_pkl_url = config.encoder_pkl_url
+    else:
+        print("Unknown Model!")
+        return None, None
 
     if not os.path.isfile(stylegan_pkl):
-        os.makedirs("../checkpoints/stylegan2/greatesthits/", exist_ok=True)
+        os.makedirs(config.ckpt_download_stylegan2_path, exist_ok=True)
         urllib.request.urlretrieve(stylegan_pkl_url, stylegan_pkl)
 
     if not os.path.isfile(encoder_pkl):
-        os.makedirs("../checkpoints/encoder/greatesthits/", exist_ok=True)
+        os.makedirs(config.ckpt_download_encoder_path, exist_ok=True)
         urllib.request.urlretrieve(encoder_pkl_url, encoder_pkl)
 
-    G = None
-    if 'gaver_G' not in st.session_state:
-        with open(stylegan_pkl, 'rb') as pklfile:
-            network = pickle.load(pklfile)
-            G = network['G'].eval().cuda()
+    with open(stylegan_pkl, 'rb') as pklfile:
+        network = pickle.load(pklfile)
+        G = network['G'].eval().cuda()
 
-    netE = None
-    if 'gaver_netE' not in st.session_state:
-        netE = stylegan_encoder.load_stylegan_encoder(domain=None, nz=G.z_dim,
-                                                   outdim=128,
-                                                   use_RGBM=True,
-                                                   use_VAE=False,
-                                                   resnet_depth=34,
-                                                   ckpt_path=encoder_pkl).eval().cuda()
+    netE = stylegan_encoder.load_stylegan_encoder(domain=None, nz=G.z_dim,
+                                                outdim=G.z_dim,
+                                                use_RGBM=True,
+                                                use_VAE=False,
+                                                resnet_depth=34,
+                                                ckpt_path=encoder_pkl).eval().cuda()
     return G, netE
 
 
@@ -238,17 +233,13 @@ def encode_and_reconstruct(audio):
     G = st.session_state['gaver_G']
     netE = st.session_state['gaver_netE']
     
-    stft_channels = 512 #Move these constants to a config file.
-    n_frames = 256
-    hop_size = 128
-    sample_rate = 16000
-    im_min = -1.0651559
-    im_max = 0.9660724
-    pghi_min = -50
-    pghi_max = 0
+    im_min = config.im_min
+    im_max = config.im_max
+    pghi_min = config.pghi_min
+    pghi_max = config.pghi_max
     
-    audio_pghi = util.zeropad(audio_pghi, n_frames * hop_size )
-    audio_pghi = util.pghi_stft(audio_pghi, hop_size=hop_size, stft_channels=stft_channels)
+    audio_pghi = util.zeropad(audio_pghi, config.n_frames * config.hop_size )
+    audio_pghi = util.pghi_stft(audio_pghi, hop_size=config.hop_size, stft_channels=config.stft_channels)
     audio_pghi = util.renormalize(audio_pghi, (np.min(audio_pghi), np.max(audio_pghi)), (im_min, im_max))
 
     audio_pghi = torch.from_numpy(audio_pghi).float().cuda().unsqueeze(dim=0)
@@ -263,14 +254,14 @@ def encode_and_reconstruct(audio):
     reconstructed_audio = torch.cat([reconstructed_audio, filler], dim=2)
     reconstructed_audio = util.renormalize(reconstructed_audio, (torch.min(reconstructed_audio), torch.max(reconstructed_audio)), (pghi_min, pghi_max))
     reconstructed_audio = reconstructed_audio.detach().cpu().numpy()[0]
-    reconstructed_audio_wav = util.pghi_istft(reconstructed_audio, hop_size=hop_size, stft_channels=stft_channels)
+    reconstructed_audio_wav = util.pghi_istft(reconstructed_audio, hop_size=config.hop_size, stft_channels=config.stft_channels)
     return encoded, reconstructed_audio_wav
 
 
 def sample(session_uuid=''):
     audio_loc = st.session_state['gaver_audio_loc']
 
-    audio, sr = librosa.load(audio_loc, sr=16000)
+    audio, sr = librosa.load(audio_loc, sr=config.sample_rate)
     G = st.session_state['gaver_G']
     netE = st.session_state['gaver_netE']
 
@@ -282,7 +273,7 @@ def sample(session_uuid=''):
     audio_bytes = audio_file.read()
     
     fig =plt.figure(figsize=(7, 5))
-    a=librosa.display.specshow(get_spectrogram(reconstructed_audio_wav)[0],x_axis='time', y_axis='linear',sr=16000, hop_length=128)
+    a=librosa.display.specshow(get_spectrogram(reconstructed_audio_wav)[0],x_axis='time', y_axis='linear',sr=config.sample_rate, hop_length=128)
     io_buf = io.BytesIO()
     fig.savefig(io_buf, format='raw')
     io_buf.seek(0)
@@ -297,7 +288,7 @@ def sample(session_uuid=''):
  
 
 def main():
-
+    print(config)
     somehtml = '<h1 style="text-align:center">Analysis-Synthesis In The Latent Space</h1>'
     st.markdown(somehtml, unsafe_allow_html=True)
 
@@ -305,19 +296,19 @@ def main():
         st.session_state['session_uuid'] = str(uuid.uuid4())
     session_uuid = st.session_state['session_uuid']
 
-    G, netE = get_model()
-    if 'gaver_G' not in st.session_state:
-        st.session_state['gaver_G'] = G
-    if 'gaver_netE' not in st.session_state:
-        st.session_state['gaver_netE'] = netE
+    st.sidebar.title('Model Options')
 
+    model_picked =  st.sidebar.selectbox('Select a model', ('Hits & Scratches', 'Environmental Sounds'), key='model_picked',)
+    G, netE = get_model(model_picked)
+    st.session_state['gaver_G'] = G
+    st.session_state['gaver_netE'] = netE
 
-    rate_locs_0_per_sec = [0.05]
-    rate_locs_1_per_sec = [0.05, 1.05]
-    rate_locs_2_per_sec = [0.05, 0.9, 1.75]
-    rate_locs_2irreg_per_sec = [0.05, 1.25, 1.75]
-    rate_locs_3_per_sec = [0.05, 0.45, 0.85, 1.25, 1.65]
-    rate_locs_4_per_sec = [0.05, 0.35, 0.65, 0.95, 1.25, 1.55, 1.85]
+    rate_locs_0_per_sec = config.rate_locs_0_per_sec
+    rate_locs_1_per_sec = config.rate_locs_1_per_sec
+    rate_locs_2_per_sec = config.rate_locs_2_per_sec
+    rate_locs_2irreg_per_sec = config.rate_locs_2irreg_per_sec
+    rate_locs_3_per_sec = config.rate_locs_3_per_sec
+    rate_locs_4_per_sec = config.rate_locs_4_per_sec
     locs = [rate_locs_0_per_sec, rate_locs_1_per_sec, rate_locs_2_per_sec, rate_locs_3_per_sec, rate_locs_4_per_sec]
 
 
@@ -347,7 +338,7 @@ def main():
     
     col1, col2, col3 = st.columns((5,2,5))
 
-    s, s_pghi = get_gaver_sounds(initial_amplitude=1.0, hittype=impact_type, total_time=2.0, impulse_time=impulse_time, sample_rate=16000,\
+    s, s_pghi = get_gaver_sounds(initial_amplitude=1.0, hittype=impact_type, total_time=2.0, impulse_time=impulse_time, sample_rate=config.sample_rate,\
                         filters=[(attack_lf, attack_hf), (trial_lf, trial_hf)], locs=locs[rate],\
                         filter_order=filter_order, damping_mult=damping_mult, damping_fade_expo=damping_fade_expo,
                         session_uuid=session_uuid)
