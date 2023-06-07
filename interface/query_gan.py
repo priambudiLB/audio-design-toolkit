@@ -189,13 +189,23 @@ def get_gaver_sounds(initial_amplitude, impulse_time, filters, total_time=2, loc
     return audio_bytes, img_arr#, '/tmp/audio-design-toolkit/query_gan/{session_uuid}_temp_signal_loc.wav'
 
 @st.cache_data
-def get_model():
-    print('getting model')
-    stylegan_pkl = config.ckpt_stylegan2_path
-    encoder_pkl = config.ckpt_encoder_path
+def get_model(model):
+    print('getting model', model)
+    if model == 'Hits & Scratches':
+        stylegan_pkl = config.ckpt_stylegan2_path
+        encoder_pkl = config.ckpt_encoder_path
 
-    stylegan_pkl_url = config.stylegan_pkl_url
-    encoder_pkl_url = config.encoder_pkl_url
+        stylegan_pkl_url = config.stylegan_pkl_url
+        encoder_pkl_url = config.encoder_pkl_url
+    elif model == 'Environmental Sounds':
+        stylegan_pkl = config.ckpt_stylegan2_path
+        encoder_pkl = config.ckpt_encoder_path
+
+        stylegan_pkl_url = config.stylegan_pkl_url
+        encoder_pkl_url = config.encoder_pkl_url
+    else:
+        print("Unknown Model!")
+        return None, None
 
     if not os.path.isfile(stylegan_pkl):
         os.makedirs(config.ckpt_download_stylegan2_path, exist_ok=True)
@@ -205,20 +215,16 @@ def get_model():
         os.makedirs(config.ckpt_download_encoder_path, exist_ok=True)
         urllib.request.urlretrieve(encoder_pkl_url, encoder_pkl)
 
-    G = None
-    if 'gaver_G' not in st.session_state:
-        with open(stylegan_pkl, 'rb') as pklfile:
-            network = pickle.load(pklfile)
-            G = network['G'].eval().cuda()
+    with open(stylegan_pkl, 'rb') as pklfile:
+        network = pickle.load(pklfile)
+        G = network['G'].eval().cuda()
 
-    netE = None
-    if 'gaver_netE' not in st.session_state:
-        netE = stylegan_encoder.load_stylegan_encoder(domain=None, nz=G.z_dim,
-                                                   outdim=G.z_dim,
-                                                   use_RGBM=True,
-                                                   use_VAE=False,
-                                                   resnet_depth=34,
-                                                   ckpt_path=encoder_pkl).eval().cuda()
+    netE = stylegan_encoder.load_stylegan_encoder(domain=None, nz=G.z_dim,
+                                                outdim=G.z_dim,
+                                                use_RGBM=True,
+                                                use_VAE=False,
+                                                resnet_depth=34,
+                                                ckpt_path=encoder_pkl).eval().cuda()
     return G, netE
 
 
@@ -290,12 +296,12 @@ def main():
         st.session_state['session_uuid'] = str(uuid.uuid4())
     session_uuid = st.session_state['session_uuid']
 
-    G, netE = get_model()
-    if 'gaver_G' not in st.session_state:
-        st.session_state['gaver_G'] = G
-    if 'gaver_netE' not in st.session_state:
-        st.session_state['gaver_netE'] = netE
+    st.sidebar.title('Model Options')
 
+    model_picked =  st.sidebar.selectbox('Select a model', ('Hits & Scratches', 'Environmental Sounds'), key='model_picked',)
+    G, netE = get_model(model_picked)
+    st.session_state['gaver_G'] = G
+    st.session_state['gaver_netE'] = netE
 
     rate_locs_0_per_sec = config.rate_locs_0_per_sec
     rate_locs_1_per_sec = config.rate_locs_1_per_sec

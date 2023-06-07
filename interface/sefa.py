@@ -106,40 +106,32 @@ def factorize_weights(_generator):
     return boundaries, values, layer_ids, values_ind
 
 @st.cache_data
-def get_sefa_model():
-    # print('getting model')
-    # #TokWotel
-    # # checkpoint_num = '0200'
-    # # network_pkl = 'training-runs/00040-tokwotel-auto1-noaug/network-snapshot-00{checkpoint_num}.pkl'.format(checkpoint_num=checkpoint_num)
-
-    # #GreatestHits
-    # checkpoint_num = '2200'
-    # network_pkl = '/stylegan2-ada-pytorch/training-runs/00041-vis-data-256-split-auto1-noaug/network-snapshot-00{checkpoint_num}.pkl'.format(checkpoint_num=checkpoint_num)
-
-    # # checkpoint_num = '5800'
-    # # network_pkl = 'training-runs/chitra-00004-vis-data-256-split-auto1-noaug/network-snapshot-00{checkpoint_num}.pkl'.format(checkpoint_num=checkpoint_num)
-
-    print('getting model')
-    stylegan_pkl = config.ckpt_stylegan2_path
-
-    stylegan_pkl_url = config.stylegan_pkl_url
+def get_sefa_model(model):
+    print('getting model', model)
+    if model == 'Hits & Scratches':
+        stylegan_pkl = config.ckpt_stylegan2_path
+        stylegan_pkl_url = config.stylegan_pkl_url
+    elif model == 'Environmental Sounds':
+        stylegan_pkl = config.ckpt_stylegan2_path
+        stylegan_pkl_url = config.stylegan_pkl_url
+    else:
+        print("Unknown Model!")
+        return None, None
 
     if not os.path.isfile(stylegan_pkl):
         os.makedirs(config.ckpt_download_stylegan2_path, exist_ok=True)
         urllib.request.urlretrieve(stylegan_pkl_url, stylegan_pkl)
 
-    G = None
-    if 'sefa_G' not in st.session_state:
-        with dnnlib.util.open_url(stylegan_pkl) as f:
-            network = pickle.load(f)
-            G = network['G'].eval().cuda()
-            # G = legacy.load_network_pkl(f)['G']
-            st.session_state['sefa_G'] = G
+    with dnnlib.util.open_url(stylegan_pkl) as f:
+        network = pickle.load(f)
+        G = network['G'].eval().cuda()
+        # G = legacy.load_network_pkl(f)['G']
+        st.session_state['sefa_G'] = G
     return st.session_state['sefa_G']
 
-def sample(pos, session_uuid=''):
+def sample(pos, model, session_uuid=''):
     device = torch.device('cuda')
-    G = get_sefa_model().to(device).eval()
+    G = get_sefa_model(model).to(device).eval()
 
     boundaries, values, layer_ids, values_ind = factorize_weights(G)
     print(values_ind[0], values_ind, boundaries)
@@ -271,6 +263,10 @@ def main():
         st.session_state['session_uuid'] = str(uuid.uuid4())
     session_uuid = st.session_state['session_uuid']
 
+    st.sidebar.title('Model Options')
+
+    model_picked =  st.sidebar.selectbox('Select a model', ('Hits & Scratches', 'Environmental Sounds'), key='model_picked',)
+
     option = st.sidebar.selectbox(
     'Select a preset sample',
     ['Random (refresh page)'],key='selected_preset_option', on_change=change_z)
@@ -307,7 +303,7 @@ def main():
 
 
     s = sample([slider_1_position, slider_2_position,slider_3_position, slider_4_position,slider_5_position,\
-        slider_6_position, slider_7_position,slider_8_position, slider_9_position,slider_10_position], session_uuid=session_uuid)
+        slider_6_position, slider_7_position,slider_8_position, slider_9_position,slider_10_position], model_picked, session_uuid)
     spectrogram_placeholder.image(s[0])
     audio_element = audio_placeholder.audio(s[1], format="audio/wav", start_time=0)
     # print(audio_element)

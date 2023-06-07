@@ -36,13 +36,23 @@ def reconstruct(encoded):
     return reconstructed_audio_wav, reconstructed_audio
 
 @st.cache_data
-def get_dimcontrol_model():
-    print('getting model')
-    stylegan_pkl = config.ckpt_stylegan2_path
-    encoder_pkl = config.ckpt_encoder_path
+def get_dimcontrol_model(model):
+    print('getting model', model)
+    if model == 'Hits & Scratches':
+        stylegan_pkl = config.ckpt_stylegan2_path
+        encoder_pkl = config.ckpt_encoder_path
 
-    stylegan_pkl_url = config.stylegan_pkl_url
-    encoder_pkl_url = config.encoder_pkl_url
+        stylegan_pkl_url = config.stylegan_pkl_url
+        encoder_pkl_url = config.encoder_pkl_url
+    elif model == 'Environmental Sounds':
+        stylegan_pkl = config.ckpt_stylegan2_path
+        encoder_pkl = config.ckpt_encoder_path
+
+        stylegan_pkl_url = config.stylegan_pkl_url
+        encoder_pkl_url = config.encoder_pkl_url
+    else:
+        print("Unknown Model!")
+        return None, None
 
     if not os.path.isfile(stylegan_pkl):
         os.makedirs(config.ckpt_download_stylegan2_path, exist_ok=True)
@@ -52,20 +62,16 @@ def get_dimcontrol_model():
         os.makedirs(config.ckpt_download_encoder_path, exist_ok=True)
         urllib.request.urlretrieve(encoder_pkl_url, encoder_pkl)
 
-    G = None
-    if 'G' not in st.session_state:
-        with open(stylegan_pkl, 'rb') as pklfile:
-            network = pickle.load(pklfile)
-            G = network['G'].eval().cuda()
+    with open(stylegan_pkl, 'rb') as pklfile:
+        network = pickle.load(pklfile)
+        G = network['G'].eval().cuda()
 
-    netE = None
-    if 'netE' not in st.session_state:
-        netE = stylegan_encoder.load_stylegan_encoder(domain=None, nz=G.z_dim,
-                                                   outdim=128,
-                                                   use_RGBM=True,
-                                                   use_VAE=False,
-                                                   resnet_depth=34,
-                                                   ckpt_path=encoder_pkl).eval().cuda()
+    netE = stylegan_encoder.load_stylegan_encoder(domain=None, nz=G.z_dim,
+                                                outdim=G.z_dim,
+                                                use_RGBM=True,
+                                                use_VAE=False,
+                                                resnet_depth=34,
+                                                ckpt_path=encoder_pkl).eval().cuda()
     return G, netE
 
 # for hits & scratches right now
@@ -147,11 +153,12 @@ def main():
         st.session_state['session_uuid'] = str(uuid.uuid4())
     session_uuid = st.session_state['session_uuid']
 
-    G, netE = get_dimcontrol_model()
-    if 'G' not in st.session_state:
-        st.session_state['G'] = G
-    if 'netE' not in st.session_state:
-        st.session_state['netE'] = netE
+    st.sidebar.title('Model Options')
+
+    model_picked =  st.sidebar.selectbox('Select a model', ('Hits & Scratches', 'Environmental Sounds'), key='model_picked',)
+    G, netE = get_dimcontrol_model(model_picked)
+    st.session_state['G'] = G
+    st.session_state['netE'] = netE
 
     st.sidebar.markdown("<h1 style='text-align: center;'>Semantic Guidance</h1>", unsafe_allow_html=True)
 
