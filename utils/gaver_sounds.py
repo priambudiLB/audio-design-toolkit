@@ -153,6 +153,40 @@ def gaver_impact_solidbar_single(initial_amplitude, impulse_time, num_partials, 
     return gn
 
 
+def get_synthetic_sounds(initial_amplitude, impulse_time, filters, total_time=2, locs=None, \
+                             sample_rate=16000,
+                             backward_damping_mult=None, forward_damping_mult=None, damping_fade_expo=1, 
+                             filter_order=None):
+    
+    
+    y_scratch = np.random.rand(int(impulse_time*sample_rate))
+    
+
+    start_t = 0.0
+    end_t = 1.0*impulse_time
+    y2 = initial_amplitude*y_scratch[int(start_t*sample_rate):int(end_t*sample_rate)]
+    if not filter_order:
+        filter_order = 1
+    y2 = 10*butter_bandpass_filter(y2, lowcut=filters[0], highcut=filters[1], fs=sample_rate, order=filter_order, btype='bandpass')
+    y2 = applyFBFadeFilter(forward_fadetime=forward_damping_mult*end_t,backward_fadetime=backward_damping_mult*end_t,signal=y2,fs=sample_rate, expo=damping_fade_expo)
+    y2 = np.pad(y2, (int(start_t*sample_rate),len(y_scratch)-int(end_t*sample_rate)), mode='constant')
+    
+    
+    y_scratch = y2
+    signal_mult = 0.00005
+    signal = signal_mult*np.random.randn(int(total_time*sample_rate))
+    for loc in locs:
+        start_loc = int(loc*sample_rate)
+        end_loc = start_loc+len(y_scratch)
+        y_scratch_ = y_scratch
+
+        if end_loc > len(signal):
+            end_loc = len(signal)
+            y_scratch_ = y_scratch_[0:end_loc-start_loc]
+        
+        signal[start_loc:end_loc] = y_scratch_
+    return signal/np.max(signal)
+
 #################################################################################################################################################
 
 ####################################################### Water Filling Model######################################################################

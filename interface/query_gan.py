@@ -123,52 +123,21 @@ def butter_bandpass_filter(data, highcut, fs,lowcut=None,  order=5, btype='bandp
 
 def get_gaver_sounds(initial_amplitude, impulse_time, filters, total_time=2, locs=None, \
                              sample_rate=config.sample_rate, hittype='hit', 
-                             damping_mult=None, damping_fade_expo=None, 
+                             backward_damping_mult=None, forward_damping_mult=None, damping_fade_expo=None, 
                              filter_order=None,
                              session_uuid=''):
     
-    y_scratch = np.random.rand(int(impulse_time*sample_rate))
-    
-    #20%
-    start_t = 0.0
-    end_t = 0.05*impulse_time
-    y1 = initial_amplitude*y_scratch[int(start_t*sample_rate):int(end_t*sample_rate)]
-    y1 = 20*butter_bandpass_filter(y1, lowcut=filters[0][0], highcut=filters[0][1], fs=sample_rate, order=2, btype='bandpass')
-    y1 = applyFBFadeFilter(forward_fadetime=0,backward_fadetime=0.1*(end_t-start_t),signal=y1,fs=sample_rate, expo=1)
-    y1 = np.pad(y1, (int(start_t*sample_rate),len(y_scratch)-int(end_t*sample_rate)), mode='constant')
-    
-    #Remaining 80%
-    start_t = 0.05*impulse_time
-    end_t = 1.0*impulse_time
-    y2 = initial_amplitude*y_scratch[int(start_t*sample_rate):int(end_t*sample_rate)]
-    if not filter_order:
-        filter_order = 1
-    y2 = 10*butter_bandpass_filter(y2, lowcut=filters[1][0], highcut=filters[1][1], fs=sample_rate, order=filter_order, btype='bandpass')
-    if not damping_mult:
-        damping_mult = 0.1
-        damping_fade_expo = 1
-    y2 = applyFBFadeFilter(forward_fadetime=0,backward_fadetime=damping_mult*(end_t-start_t),signal=y2,fs=sample_rate, expo=damping_fade_expo)
-    y2 = np.pad(y2, (int(start_t*sample_rate),len(y_scratch)-int(end_t*sample_rate)), mode='constant')
-    
-    
-    y_scratch = y1+y2
-    
-    signal_mult = 0.00005
-    if hittype == 'scratch':
-        signal_mult = 0.0005
-    signal = signal_mult*np.random.randn(int(total_time*sample_rate))
-    
-    for loc in locs:
-        start_loc = int(loc*sample_rate)
-        end_loc = start_loc+len(y_scratch)
-        y_scratch_ = y_scratch
-
-        if end_loc > len(signal):
-            end_loc = len(signal)
-            y_scratch_ = y_scratch_[0:end_loc-start_loc]
-
-        signal[start_loc:end_loc] = y_scratch_
-
+    signal = gaver_sounds.get_synthetic_sounds(initial_amplitude=initial_amplitude, 
+                                                impulse_time=impulse_time, 
+                                                filters=filters, 
+                                                total_time=total_time, 
+                                                locs=locs, 
+                                                sample_rate=sample_rate,
+                                                backward_damping_mult=backward_damping_mult, 
+                                                forward_damping_mult=forward_damping_mult, 
+                                                damping_fade_expo=damping_fade_expo, 
+                                                filter_order=filter_order)
+                        
     signal = signal/np.max(signal)
     os.makedirs(config.query_gan_tmp_audio_loc_path, exist_ok=True)
     sf.write(f'{config.query_gan_tmp_audio_loc_path}{session_uuid}_temp_signal_loc.wav', signal.astype(float), 16000)
@@ -320,28 +289,28 @@ def main():
     impulse_time = st.sidebar.slider('Impulse Width', min_value=0.0, max_value=2.0, value=0.05, step=0.01,  format=None, key='impulse_width_position', help=None, args=None, kwargs=None, disabled=False)
 
     
-    attack_lf, attack_hf = st.sidebar.select_slider(
-                            'Select a frequency band for attack part',
-                            options=np.arange(10,7999,10),
-                            value=(10, 700))
-    
-    trial_lf, trial_hf = st.sidebar.select_slider(
-                            'Select a frequency band for trailing part',
+    lf, hf = st.sidebar.select_slider(
+                            'Select a frequency band for the impulse',
                             options=np.arange(10,7999,10),
                             value=(10, 700))
     
     filter_order = st.sidebar.slider('Filter Order', min_value=1.0, max_value=5.0, value=1.0, step=1.0,  format=None, key='filter_order_position', help=None, args=None, kwargs=None, disabled=False)
 
-    damping_mult = st.sidebar.slider('Damping', min_value=0.1, max_value=1.0, value=0.1, step=0.1,  format=None, key='damping_mult_position', help=None, args=None, kwargs=None, disabled=False)
+    forward_damping_mult = st.sidebar.slider('Fade In', min_value=0.1, max_value=1.0, value=0.1, step=0.1,  format=None, key='fdamping_mult_position', help=None, args=None, kwargs=None, disabled=False)
+    backward_damping_mult = st.sidebar.slider('Fade Out', min_value=0.1, max_value=1.0, value=0.1, step=0.1,  format=None, key='bdamping_mult_position', help=None, args=None, kwargs=None, disabled=False)
     damping_fade_expo = st.sidebar.slider('Damping Fade Exponent', min_value=1.0, max_value=3.0, value=1.0, step=1.0,  format=None, key='damping_fade_expo_position', help=None, args=None, kwargs=None, disabled=False)
     
     
     col1, col2, col3 = st.columns((5,2,5))
 
-    s, s_pghi = get_gaver_sounds(initial_amplitude=1.0, hittype=impact_type, total_time=2.0, impulse_time=impulse_time, sample_rate=config.sample_rate,\
-                        filters=[(attack_lf, attack_hf), (trial_lf, trial_hf)], locs=locs[rate],\
-                        filter_order=filter_order, damping_mult=damping_mult, damping_fade_expo=damping_fade_expo,
-                        session_uuid=session_uuid)
+    s, s_pghi = get_gaver_sounds(initial_amplitude=1.0, hittype=impact_type, total_time=2.0,\
+                                    impulse_time=impulse_time, sample_rate=config.sample_rate,\
+                                    filters=[lf, hf], locs=locs[rate],\
+                                    filter_order=filter_order, \
+                                    forward_damping_mult=forward_damping_mult, \
+                                    backward_damping_mult=backward_damping_mult, \
+                                    damping_fade_expo=damping_fade_expo,\
+                                    session_uuid=session_uuid)
     
     if 'gaver_audio_bytes' not in st.session_state:
         st.session_state['gaver_audio_bytes'] = byte_array = bytes([])

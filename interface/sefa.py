@@ -14,6 +14,9 @@ import re
 from typing import List, Optional
 
 import click
+
+import sys
+sys.path.insert(0, '../')
 import dnnlib
 import numpy as np
 import torch
