@@ -57,7 +57,7 @@ def get_stylegan_encoder(ndim_z=512, add_relu=False, resnet_depth=34, halfsize=T
                 layers.append( ('postrelu', torch.nn.LeakyReLU(0.2) ))
 
             # add reshape layer
-            layers.append(('to_wplus', customnet.EncoderToWplus(wdim=128)))
+            layers.append(('to_wplus', customnet.EncoderToWplus(wdim=ndim_z)))
 
             return layers
 
