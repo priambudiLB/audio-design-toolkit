@@ -49,11 +49,12 @@ config = util.get_config('../config/config.json')
 config = Namespace(**dict(**config))
 
 def pghi_istft(x):
+    model = st.session_state['model_picked']
     use_truncated_window = True
     if use_truncated_window:
-        stft_system = GaussTruncTF(hop_size=config.hop_size, stft_channels=config.stft_channels)
+        stft_system = GaussTruncTF(hop_size=config.model_list[model]['hop_size'], stft_channels=config.stft_channels)
     else:
-        stft_system = GaussTF(hop_size=config.hop_size, stft_channels=config.stft_channels)
+        stft_system = GaussTF(hop_size=config.model_list[model]['hop_size'], stft_channels=config.stft_channels)
 
     x = np.squeeze(x,axis=0)
     new_Y = inv_log_spectrogram(x)
@@ -111,18 +112,15 @@ def factorize_weights(_generator):
 @st.cache_data
 def get_sefa_model(model):
     print('getting model', model)
-    if model == 'Hits & Scratches':
-        stylegan_pkl = config.ckpt_stylegan2_path
-        stylegan_pkl_url = config.stylegan_pkl_url
-    elif model == 'Environmental Sounds':
-        stylegan_pkl = config.ckpt_stylegan2_path
-        stylegan_pkl_url = config.stylegan_pkl_url
-    else:
+    try:
+        stylegan_pkl = config.model_list[model]['ckpt_stylegan2_path']
+        stylegan_pkl_url = config.model_list[model]['stylegan_pkl_url']
+    except:
         print("Unknown Model!")
         return None, None
 
     if not os.path.isfile(stylegan_pkl):
-        os.makedirs(config.ckpt_download_stylegan2_path, exist_ok=True)
+        os.makedirs(config.model_list[model]['ckpt_download_stylegan2_path'], exist_ok=True)
         urllib.request.urlretrieve(stylegan_pkl_url, stylegan_pkl)
 
     with dnnlib.util.open_url(stylegan_pkl) as f:
@@ -132,7 +130,8 @@ def get_sefa_model(model):
         st.session_state['sefa_G'] = G
     return st.session_state['sefa_G']
 
-def sample(pos, model, session_uuid=''):
+def sample(pos, session_uuid=''):
+    model = st.session_state['model_picked']
     device = torch.device('cuda')
     G = get_sefa_model(model).to(device).eval()
 
@@ -255,6 +254,9 @@ def change_z():
     st.session_state['sefa_slider_1_position'] = 0
     st.session_state['sefa_slider_2_position'] = 0
 
+def map_dropdown_name(input):
+    return config.model_list[input]['name']
+
 def main():
 
     
@@ -268,7 +270,11 @@ def main():
 
     st.sidebar.title('Model Options')
 
-    model_picked =  st.sidebar.selectbox('Select a model', ('Hits & Scratches', 'Environmental Sounds'), key='model_picked',)
+    model_names = []
+    for key in config.model_list:
+        model_names.append(key)
+    model_names = tuple(model_names)
+    model_picked =  st.sidebar.selectbox('Select a model', model_names, format_func=map_dropdown_name, key='model_picked')
 
     option = st.sidebar.selectbox(
     'Select a preset sample',
@@ -306,7 +312,7 @@ def main():
 
 
     s = sample([slider_1_position, slider_2_position,slider_3_position, slider_4_position,slider_5_position,\
-        slider_6_position, slider_7_position,slider_8_position, slider_9_position,slider_10_position], model_picked, session_uuid)
+        slider_6_position, slider_7_position,slider_8_position, slider_9_position,slider_10_position], session_uuid)
     spectrogram_placeholder.image(s[0])
     audio_element = audio_placeholder.audio(s[1], format="audio/wav", start_time=0)
     # print(audio_element)

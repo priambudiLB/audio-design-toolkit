@@ -26,40 +26,34 @@ def get_vector(x):
     return torch.from_numpy(x).float().cuda()
 
 def reconstruct(encoded):
+    model = st.session_state['model_picked']
     G = st.session_state['G']
     reconstructed_audio = G.synthesis(encoded)
     filler = torch.full((1, 1, 1, reconstructed_audio[0].shape[1]), torch.min(reconstructed_audio)).cuda()
     reconstructed_audio = torch.cat([reconstructed_audio, filler], dim=2)
     reconstructed_audio = util.renormalize(reconstructed_audio, (torch.min(reconstructed_audio), torch.max(reconstructed_audio)), (-50, 0))
     reconstructed_audio = reconstructed_audio.detach().cpu().numpy()[0]
-    reconstructed_audio_wav = util.pghi_istft(reconstructed_audio, hop_size=config.hop_size, stft_channels=config.stft_channels)
+    reconstructed_audio_wav = util.pghi_istft(reconstructed_audio, hop_size=config.model_list[model]['hop_size'], stft_channels=config.stft_channels)
     return reconstructed_audio_wav, reconstructed_audio
 
 @st.cache_data
 def get_dimcontrol_model(model):
     print('getting model', model)
-    if model == 'Hits & Scratches':
-        stylegan_pkl = config.ckpt_stylegan2_path
-        encoder_pkl = config.ckpt_encoder_path
-
-        stylegan_pkl_url = config.stylegan_pkl_url
-        encoder_pkl_url = config.encoder_pkl_url
-    elif model == 'Environmental Sounds':
-        stylegan_pkl = config.ckpt_stylegan2_path
-        encoder_pkl = config.ckpt_encoder_path
-
-        stylegan_pkl_url = config.stylegan_pkl_url
-        encoder_pkl_url = config.encoder_pkl_url
-    else:
+    try:
+        stylegan_pkl = config.model_list[model]['ckpt_stylegan2_path']
+        encoder_pkl = config.model_list[model]['ckpt_encoder_path']
+        stylegan_pkl_url = config.model_list[model]['stylegan_pkl_url']
+        encoder_pkl_url = config.model_list[model]['encoder_pkl_url']
+    except:
         print("Unknown Model!")
         return None, None
 
     if not os.path.isfile(stylegan_pkl):
-        os.makedirs(config.ckpt_download_stylegan2_path, exist_ok=True)
+        os.makedirs(config.model_list[model]['ckpt_download_stylegan2_path'], exist_ok=True)
         urllib.request.urlretrieve(stylegan_pkl_url, stylegan_pkl)
 
     if not os.path.isfile(encoder_pkl):
-        os.makedirs(config.ckpt_download_encoder_path, exist_ok=True)
+        os.makedirs(config.model_list[model]['ckpt_download_encoder_path'], exist_ok=True)
         urllib.request.urlretrieve(encoder_pkl_url, encoder_pkl)
 
     with open(stylegan_pkl, 'rb') as pklfile:
@@ -144,6 +138,8 @@ def change_z():
     st.session_state['rate_slider_position'] = 0
     st.session_state['impacttype_slider_position'] = 0
 
+def map_dropdown_name(input):
+    return config.model_list[input]['name']
 
 def main():
 
@@ -155,7 +151,12 @@ def main():
 
     st.sidebar.title('Model Options')
 
-    model_picked =  st.sidebar.selectbox('Select a model', ('Hits & Scratches', 'Environmental Sounds'), key='model_picked',)
+    model_names = []
+    for key in config.model_list:
+        model_names.append(key)
+    model_names = tuple(model_names)
+    model_picked =  st.sidebar.selectbox('Select a model', model_names, format_func=map_dropdown_name, key='model_picked')
+    
     G, netE = get_dimcontrol_model(model_picked)
     st.session_state['G'] = G
     st.session_state['netE'] = netE
