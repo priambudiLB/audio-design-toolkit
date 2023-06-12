@@ -23,6 +23,13 @@
             "ckpt_download_encoder_path": "../checkpoints/encoder/dcase/"
         }
     },
+    "impulse_rate": [
+        {"label": "Very Low", "value": 0},
+        {"label": "Low", "value": 1},
+        {"label": "Medium", "value": 2},
+        {"label": "High", "value": 3},
+        {"label": "Very High", "value": 4}
+    ],
     "stft_channels": 512,
     "n_frames": 256,
     "sample_rate": 16000,
