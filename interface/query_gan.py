@@ -53,13 +53,15 @@ config = util.get_config('../config/config.json')
 config = Namespace(**dict(**config))
 
 def pghi_stft(x):
-    stft_system = GaussTruncTF(hop_size=config.hop_size, stft_channels=config.stft_channels)
+    model = st.session_state['model_picked']
+    stft_system = GaussTruncTF(hop_size=config.model_list[model]['hop_size'], stft_channels=config.stft_channels)
     Y = stft_system.spectrogram(x)
     log_Y= log_spectrogram(Y)
     return np.expand_dims(log_Y, axis=0)
 
 def pghi_istft(x):
-    stft_system = GaussTruncTF(hop_size=config.hop_size, stft_channels=config.stft_channels)
+    model = st.session_state['model_picked']
+    stft_system = GaussTruncTF(hop_size=config.model_list[model]['hop_size'], stft_channels=config.stft_channels)
     x = np.squeeze(x,axis=0)
     new_Y = inv_log_spectrogram(x)
     new_y = stft_system.invert_spectrogram(new_Y)
@@ -84,8 +86,9 @@ def get_vector(x):
     return torch.from_numpy(x).float().cuda()
 
 def get_spectrogram(audio):
+    model = st.session_state['model_picked']
     audio_pghi = preprocess_signal(audio)
-    audio_pghi = zeropad(audio_pghi, config.n_frames * config.hop_size )
+    audio_pghi = zeropad(audio_pghi, config.n_frames * config.model_list[model]['hop_size'] )
     audio_pghi = pghi_stft(audio_pghi)
     return audio_pghi
 
@@ -121,7 +124,7 @@ def butter_bandpass_filter(data, highcut, fs,lowcut=None,  order=5, btype='bandp
     y = lfilter(b, a, data)
     return y
 
-def get_gaver_sounds(initial_amplitude, impulse_time, filters, total_time=2, locs=None, \
+def get_gaver_sounds(initial_amplitude, impulse_time, filters, total_time, locs=None, \
                              sample_rate=config.sample_rate, hittype='hit', 
                              backward_damping_mult=None, forward_damping_mult=None, damping_fade_expo=None, 
                              filter_order=None,
@@ -160,28 +163,21 @@ def get_gaver_sounds(initial_amplitude, impulse_time, filters, total_time=2, loc
 @st.cache_data
 def get_model(model):
     print('getting model', model)
-    if model == 'Hits & Scratches':
-        stylegan_pkl = config.ckpt_stylegan2_path
-        encoder_pkl = config.ckpt_encoder_path
-
-        stylegan_pkl_url = config.stylegan_pkl_url
-        encoder_pkl_url = config.encoder_pkl_url
-    elif model == 'Environmental Sounds':
-        stylegan_pkl = config.ckpt_stylegan2_path
-        encoder_pkl = config.ckpt_encoder_path
-
-        stylegan_pkl_url = config.stylegan_pkl_url
-        encoder_pkl_url = config.encoder_pkl_url
-    else:
+    try:
+        stylegan_pkl = config.model_list[model]['ckpt_stylegan2_path']
+        encoder_pkl = config.model_list[model]['ckpt_encoder_path']
+        stylegan_pkl_url = config.model_list[model]['stylegan_pkl_url']
+        encoder_pkl_url = config.model_list[model]['encoder_pkl_url']
+    except:
         print("Unknown Model!")
         return None, None
 
     if not os.path.isfile(stylegan_pkl):
-        os.makedirs(config.ckpt_download_stylegan2_path, exist_ok=True)
+        os.makedirs(config.model_list[model]['ckpt_download_stylegan2_path'], exist_ok=True)
         urllib.request.urlretrieve(stylegan_pkl_url, stylegan_pkl)
 
     if not os.path.isfile(encoder_pkl):
-        os.makedirs(config.ckpt_download_encoder_path, exist_ok=True)
+        os.makedirs(config.model_list[model]['ckpt_download_encoder_path'], exist_ok=True)
         urllib.request.urlretrieve(encoder_pkl_url, encoder_pkl)
 
     with open(stylegan_pkl, 'rb') as pklfile:
@@ -198,6 +194,7 @@ def get_model(model):
 
 
 def encode_and_reconstruct(audio):
+    model = st.session_state['model_picked']
     audio_pghi = preprocess_signal(audio)
     G = st.session_state['gaver_G']
     netE = st.session_state['gaver_netE']
@@ -207,8 +204,8 @@ def encode_and_reconstruct(audio):
     pghi_min = config.pghi_min
     pghi_max = config.pghi_max
     
-    audio_pghi = util.zeropad(audio_pghi, config.n_frames * config.hop_size )
-    audio_pghi = util.pghi_stft(audio_pghi, hop_size=config.hop_size, stft_channels=config.stft_channels)
+    audio_pghi = util.zeropad(audio_pghi, config.n_frames * config.model_list[model]['hop_size'] )
+    audio_pghi = util.pghi_stft(audio_pghi, hop_size=config.model_list[model]['hop_size'], stft_channels=config.stft_channels)
     audio_pghi = util.renormalize(audio_pghi, (np.min(audio_pghi), np.max(audio_pghi)), (im_min, im_max))
 
     audio_pghi = torch.from_numpy(audio_pghi).float().cuda().unsqueeze(dim=0)
@@ -223,7 +220,7 @@ def encode_and_reconstruct(audio):
     reconstructed_audio = torch.cat([reconstructed_audio, filler], dim=2)
     reconstructed_audio = util.renormalize(reconstructed_audio, (torch.min(reconstructed_audio), torch.max(reconstructed_audio)), (pghi_min, pghi_max))
     reconstructed_audio = reconstructed_audio.detach().cpu().numpy()[0]
-    reconstructed_audio_wav = util.pghi_istft(reconstructed_audio, hop_size=config.hop_size, stft_channels=config.stft_channels)
+    reconstructed_audio_wav = util.pghi_istft(reconstructed_audio, hop_size=config.model_list[model]['hop_size'], stft_channels=config.stft_channels)
     return encoded, reconstructed_audio_wav
 
 
@@ -254,10 +251,10 @@ def sample(session_uuid=''):
     st.session_state['gaver_audio_bytes'] = audio_bytes
     st.session_state['gaver_img_arr'] = img_arr
 
- 
+def map_dropdown_name(input):
+    return config.model_list[input]['name']
 
 def main():
-    print(config)
     somehtml = '<h1 style="text-align:center">Analysis-Synthesis In The Latent Space</h1>'
     st.markdown(somehtml, unsafe_allow_html=True)
 
@@ -267,8 +264,14 @@ def main():
 
     st.sidebar.title('Model Options')
 
-    model_picked =  st.sidebar.selectbox('Select a model', ('Hits & Scratches', 'Environmental Sounds'), key='model_picked',)
+    model_names = []
+    for key in config.model_list:
+        model_names.append(key)
+    model_names = tuple(model_names)
+    model_picked =  st.sidebar.selectbox('Select a model', model_names, format_func=map_dropdown_name, key='model_picked')
     G, netE = get_model(model_picked)
+    print('======================================')
+    print(config.model_list[model_picked])
     st.session_state['gaver_G'] = G
     st.session_state['gaver_netE'] = netE
 
@@ -303,7 +306,7 @@ def main():
     
     col1, col2, col3 = st.columns((5,2,5))
 
-    s, s_pghi = get_gaver_sounds(initial_amplitude=1.0, hittype=impact_type, total_time=2.0,\
+    s, s_pghi = get_gaver_sounds(initial_amplitude=1.0, hittype=impact_type, total_time=config.model_list[model_picked]['total_time'],\
                                     impulse_time=impulse_time, sample_rate=config.sample_rate,\
                                     filters=[lf, hf], locs=locs[rate],\
                                     filter_order=filter_order, \
