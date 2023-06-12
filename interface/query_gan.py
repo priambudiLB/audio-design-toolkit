@@ -129,7 +129,7 @@ def get_gaver_sounds(initial_amplitude, impulse_time, filters, total_time, locs=
                              backward_damping_mult=None, forward_damping_mult=None, damping_fade_expo=None, 
                              filter_order=None,
                              session_uuid=''):
-    
+    model = st.session_state['model_picked']
     signal = gaver_sounds.get_synthetic_sounds(initial_amplitude=initial_amplitude, 
                                                 impulse_time=impulse_time, 
                                                 filters=filters, 
@@ -143,12 +143,13 @@ def get_gaver_sounds(initial_amplitude, impulse_time, filters, total_time, locs=
                         
     signal = signal/np.max(signal)
     os.makedirs(config.query_gan_tmp_audio_loc_path, exist_ok=True)
-    sf.write(f'{config.query_gan_tmp_audio_loc_path}{session_uuid}_temp_signal_loc.wav', signal.astype(float), 16000)
+    sf.write(f'{config.query_gan_tmp_audio_loc_path}{session_uuid}_temp_signal_loc.wav', signal.astype(float), config.sample_rate)
     audio_file = open(f'{config.query_gan_tmp_audio_loc_path}{session_uuid}_temp_signal_loc.wav', 'rb')
     audio_bytes = audio_file.read()
     
     fig =plt.figure(figsize=(7, 5))
-    a=librosa.display.specshow(get_spectrogram(signal)[0],x_axis='time', y_axis='linear',sr=config.sample_rate, hop_length=128)
+    a=librosa.display.specshow(get_spectrogram(signal)[0],x_axis='time', y_axis='linear',sr=config.sample_rate, hop_length=config.model_list[model]['hop_size'])
+    print(get_spectrogram(signal), signal)
     io_buf = io.BytesIO()
     fig.savefig(io_buf, format='raw')
     io_buf.seek(0)
@@ -157,7 +158,7 @@ def get_gaver_sounds(initial_amplitude, impulse_time, filters, total_time, locs=
     io_buf.close()
 
     st.session_state['gaver_audio_loc'] = f'/tmp/audio-design-toolkit/query_gan/{session_uuid}_temp_signal_loc.wav'
-
+    sample(session_uuid)
     return audio_bytes, img_arr#, '/tmp/audio-design-toolkit/query_gan/{session_uuid}_temp_signal_loc.wav'
 
 @st.cache_data
@@ -225,6 +226,7 @@ def encode_and_reconstruct(audio):
 
 
 def sample(session_uuid=''):
+    model = st.session_state['model_picked']
     audio_loc = st.session_state['gaver_audio_loc']
 
     audio, sr = librosa.load(audio_loc, sr=config.sample_rate)
@@ -234,12 +236,12 @@ def sample(session_uuid=''):
     encoded, reconstructed_audio_wav = encode_and_reconstruct(audio)
 
     os.makedirs('/tmp/audio-design-toolkit/query_gan/', exist_ok=True)
-    sf.write(f'/tmp/audio-design-toolkit/query_gan/{session_uuid}_reconstructed_audio_wav_recon.wav', reconstructed_audio_wav.astype(float), 16000)
+    sf.write(f'/tmp/audio-design-toolkit/query_gan/{session_uuid}_reconstructed_audio_wav_recon.wav', reconstructed_audio_wav.astype(float), config.sample_rate)
     audio_file = open(f'/tmp/audio-design-toolkit/query_gan/{session_uuid}_reconstructed_audio_wav_recon.wav', 'rb')
     audio_bytes = audio_file.read()
     
     fig =plt.figure(figsize=(7, 5))
-    a=librosa.display.specshow(get_spectrogram(reconstructed_audio_wav)[0],x_axis='time', y_axis='linear',sr=config.sample_rate, hop_length=128)
+    a=librosa.display.specshow(get_spectrogram(reconstructed_audio_wav)[0],x_axis='time', y_axis='linear',sr=config.sample_rate, hop_length=config.model_list[model]['hop_size'])
     io_buf = io.BytesIO()
     fig.savefig(io_buf, format='raw')
     io_buf.seek(0)
@@ -254,6 +256,9 @@ def sample(session_uuid=''):
 def map_dropdown_name(input):
     return config.model_list[input]['name']
 
+def map_dropdown_impulse(input):
+    return input['label']
+
 def main():
     somehtml = '<h1 style="text-align:center">Analysis-Synthesis In The Latent Space</h1>'
     st.markdown(somehtml, unsafe_allow_html=True)
@@ -261,8 +266,6 @@ def main():
     if 'session_uuid' not in st.session_state:
         st.session_state['session_uuid'] = str(uuid.uuid4())
     session_uuid = st.session_state['session_uuid']
-
-    st.sidebar.title('Model Options')
 
     model_names = []
     for key in config.model_list:
@@ -275,19 +278,20 @@ def main():
     st.session_state['gaver_G'] = G
     st.session_state['gaver_netE'] = netE
 
-    rate_locs_0_per_sec = config.rate_locs_0_per_sec
-    rate_locs_1_per_sec = config.rate_locs_1_per_sec
-    rate_locs_2_per_sec = config.rate_locs_2_per_sec
-    rate_locs_2irreg_per_sec = config.rate_locs_2irreg_per_sec
-    rate_locs_3_per_sec = config.rate_locs_3_per_sec
-    rate_locs_4_per_sec = config.rate_locs_4_per_sec
+    rate_locs_0_per_sec = np.linspace(0.05, 4, 1)
+    rate_locs_1_per_sec = np.linspace(0.05, 3.9, 3)
+    rate_locs_2_per_sec = np.linspace(0.05, 3.9, 5)
+    rate_locs_3_per_sec = np.linspace(0.05, 3.9, 8)
+    rate_locs_4_per_sec = np.linspace(0.05, 3.9, 20)
     locs = [rate_locs_0_per_sec, rate_locs_1_per_sec, rate_locs_2_per_sec, rate_locs_3_per_sec, rate_locs_4_per_sec]
 
-
-    st.sidebar.title('Parameters Options')
-
     impact_type = 'hit'
-    rate =  st.sidebar.selectbox('Rate', (0,1,2,3,4), key='rate_position',)
+    # impulses = []
+    # for item in config.impulse_rate:
+    #     impulses.append(item['label'])
+    # print(impulses)
+    print(config.impulse_rate)
+    rate =  st.sidebar.selectbox('Number of Impulse', config.impulse_rate, format_func=map_dropdown_impulse, key='rate_position',)
     
     impulse_time = st.sidebar.slider('Impulse Width', min_value=0.0, max_value=2.0, value=0.05, step=0.01,  format=None, key='impulse_width_position', help=None, args=None, kwargs=None, disabled=False)
 
@@ -308,7 +312,7 @@ def main():
 
     s, s_pghi = get_gaver_sounds(initial_amplitude=1.0, hittype=impact_type, total_time=config.model_list[model_picked]['total_time'],\
                                     impulse_time=impulse_time, sample_rate=config.sample_rate,\
-                                    filters=[lf, hf], locs=locs[rate],\
+                                    filters=[lf, hf], locs=locs[rate['value']],\
                                     filter_order=filter_order, \
                                     forward_damping_mult=forward_damping_mult, \
                                     backward_damping_mult=backward_damping_mult, \
@@ -321,7 +325,7 @@ def main():
     
     s_recon = st.session_state['gaver_audio_bytes']
     s_recon_pghi = st.session_state['gaver_img_arr']
-    
+
 
     with col1:
         colname = '<div style="padding-left: 30%;"><h3><b><i>Synthetic Reference</i></b></h3></div>'
