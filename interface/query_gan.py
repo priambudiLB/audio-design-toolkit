@@ -149,7 +149,6 @@ def get_gaver_sounds(initial_amplitude, impulse_time, filters, total_time, locs=
     
     fig =plt.figure(figsize=(7, 5))
     a=librosa.display.specshow(get_spectrogram(signal)[0],x_axis='time', y_axis='linear',sr=config.sample_rate, hop_length=config.model_list[model]['hop_size'])
-    print(get_spectrogram(signal), signal)
     io_buf = io.BytesIO()
     fig.savefig(io_buf, format='raw')
     io_buf.seek(0)
@@ -286,11 +285,6 @@ def main():
     locs = [rate_locs_0_per_sec, rate_locs_1_per_sec, rate_locs_2_per_sec, rate_locs_3_per_sec, rate_locs_4_per_sec]
 
     impact_type = 'hit'
-    # impulses = []
-    # for item in config.impulse_rate:
-    #     impulses.append(item['label'])
-    # print(impulses)
-    print(config.impulse_rate)
     rate =  st.sidebar.selectbox('Number of Impulse', config.impulse_rate, format_func=map_dropdown_impulse, key='rate_position',)
     
     impulse_time = st.sidebar.slider('Impulse Width', min_value=0.0, max_value=2.0, value=0.05, step=0.01,  format=None, key='impulse_width_position', help=None, args=None, kwargs=None, disabled=False)
