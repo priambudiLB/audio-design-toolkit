@@ -39,38 +39,5 @@
     "im_min": -1.0651559,
     "im_max": 0.9660724,
     "pghi_min": -50,
-    "pghi_max": 0,
-    "rate_locs_0_per_sec": [
-        0.05
-    ],
-    "rate_locs_1_per_sec": [
-        0.05,
-        1.05
-    ],
-    "rate_locs_2_per_sec": [
-        0.05,
-        0.9,
-        1.75
-    ],
-    "rate_locs_2irreg_per_sec": [
-        0.05,
-        1.25,
-        1.75
-    ],
-    "rate_locs_3_per_sec": [
-        0.05,
-        0.45,
-        0.85,
-        1.25,
-        1.65
-    ],
-    "rate_locs_4_per_sec": [
-        0.05,
-        0.35,
-        0.65,
-        0.95,
-        1.25,
-        1.55,
-        1.85
-    ]
+    "pghi_max": 0
 }
