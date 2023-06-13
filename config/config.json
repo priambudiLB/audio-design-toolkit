@@ -9,7 +9,8 @@
             "stylegan_pkl_url": "https://guided-control-by-prototypes.s3.ap-southeast-1.amazonaws.com/resources/model_weights/audio-stylegan2/greatesthits/network-snapshot-002800.pkl",
             "encoder_pkl_url": "https://guided-control-by-prototypes.s3.ap-southeast-1.amazonaws.com/resources/model_weights/encoder/greatesthits/netE_epoch_best.pth",
             "ckpt_download_stylegan2_path": "../checkpoints/stylegan2/greatesthits/",
-            "ckpt_download_encoder_path": "../checkpoints/encoder/greatesthits/"
+            "ckpt_download_encoder_path": "../checkpoints/encoder/greatesthits/",
+            "soft_prior_options": ["Hits", "Scratch"]
         },
         "environmental_sounds": {
             "name": "Environmental Sounds",
@@ -20,7 +21,8 @@
             "stylegan_pkl_url": "https://guided-control-by-prototypes.s3.ap-southeast-1.amazonaws.com/resources/model_weights/audio-stylegan2/dcase/network-snapshot-002200.pkl",
             "encoder_pkl_url": "https://guided-control-by-prototypes.s3.ap-southeast-1.amazonaws.com/resources/model_weights/encoder/dcase/netE_epoch_best.pth",
             "ckpt_download_stylegan2_path": "../checkpoints/stylegan2/dcase/",
-            "ckpt_download_encoder_path": "../checkpoints/encoder/dcase/"
+            "ckpt_download_encoder_path": "../checkpoints/encoder/dcase/",
+            "soft_prior_options": ["DogBark", "Footstep", "GunShot", "MovingMotorVehicle", "Rain", "Sneeze", "Cough"]
         }
     },
     "impulse_rate": [

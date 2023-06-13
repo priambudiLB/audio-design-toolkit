@@ -156,7 +156,7 @@ def get_gaver_sounds(initial_amplitude, impulse_time, filters, total_time, locs=
                         newshape=(int(fig.bbox.bounds[3]), int(fig.bbox.bounds[2]), -1))
     io_buf.close()
 
-    st.session_state['gaver_audio_loc'] = f'/tmp/audio-design-toolkit/query_gan/{session_uuid}_temp_signal_loc.wav'
+    st.session_state['gaver_audio_loc'] = f'{config.query_gan_tmp_audio_loc_path}{session_uuid}_temp_signal_loc.wav'
     sample(session_uuid)
     return audio_bytes, img_arr#, '/tmp/audio-design-toolkit/query_gan/{session_uuid}_temp_signal_loc.wav'
 
@@ -238,16 +238,18 @@ def sample(session_uuid=''):
     sf.write(f'/tmp/audio-design-toolkit/query_gan/{session_uuid}_reconstructed_audio_wav_recon.wav', reconstructed_audio_wav.astype(float), config.sample_rate)
     audio_file = open(f'/tmp/audio-design-toolkit/query_gan/{session_uuid}_reconstructed_audio_wav_recon.wav', 'rb')
     audio_bytes = audio_file.read()
-    
-    fig =plt.figure(figsize=(7, 5))
-    a=librosa.display.specshow(get_spectrogram(reconstructed_audio_wav)[0],x_axis='time', y_axis='linear',sr=config.sample_rate, hop_length=config.model_list[model]['hop_size'])
+    fig, ax = plt.subplots(nrows=2, figsize=(7, 10))
+    a=librosa.display.specshow(get_spectrogram(reconstructed_audio_wav)[0],x_axis='time', y_axis='linear',sr=config.sample_rate, hop_length=config.model_list[model]['hop_size'], ax=ax[1])
+    ax[1].set(title='Spectogram')
+    ax[1].label_outer()
+    b=librosa.display.waveshow(reconstructed_audio_wav, sr=config.sample_rate, axis='time', ax=ax[0])
+    ax[0].set(title='Waveform')
     io_buf = io.BytesIO()
     fig.savefig(io_buf, format='raw')
     io_buf.seek(0)
     img_arr = np.reshape(np.frombuffer(io_buf.getvalue(), dtype=np.uint8),
                         newshape=(int(fig.bbox.bounds[3]), int(fig.bbox.bounds[2]), -1))
     io_buf.close()
-
     
     st.session_state['gaver_audio_bytes'] = audio_bytes
     st.session_state['gaver_img_arr'] = img_arr
@@ -270,12 +272,12 @@ def main():
     for key in config.model_list:
         model_names.append(key)
     model_names = tuple(model_names)
-    model_picked =  st.sidebar.selectbox('Select a model', model_names, format_func=map_dropdown_name, key='model_picked')
+    model_picked =  st.sidebar.selectbox('Select Model', model_names, format_func=map_dropdown_name, key='model_picked')
     G, netE = get_model(model_picked)
-    print('======================================')
-    print(config.model_list[model_picked])
     st.session_state['gaver_G'] = G
     st.session_state['gaver_netE'] = netE
+
+    example_picked =  st.sidebar.selectbox('Select Example', ('GunShot', ''), key='example_picked')
 
     rate_locs_0_per_sec = np.linspace(0.05, 4, 1)
     rate_locs_1_per_sec = np.linspace(0.05, 3.9, 3)
@@ -285,24 +287,25 @@ def main():
     locs = [rate_locs_0_per_sec, rate_locs_1_per_sec, rate_locs_2_per_sec, rate_locs_3_per_sec, rate_locs_4_per_sec]
 
     impact_type = 'hit'
-    rate =  st.sidebar.selectbox('Number of Impulse', config.impulse_rate, format_func=map_dropdown_impulse, key='rate_position',)
-    
     impulse_time = st.sidebar.slider('Impulse Width', min_value=0.0, max_value=2.0, value=0.05, step=0.01,  format=None, key='impulse_width_position', help=None, args=None, kwargs=None, disabled=False)
 
-    
+    rate =  st.sidebar.selectbox('Number of Impulse', config.impulse_rate, format_func=map_dropdown_impulse, key='rate_position',)
+    add_irregularity = st.sidebar.checkbox('Add Irregularity')
+
     lf, hf = st.sidebar.select_slider(
-                            'Select a frequency band for the impulse',
+                            'Frequency Band',
                             options=np.arange(10,7999,10),
                             value=(10, 700))
     
     filter_order = st.sidebar.slider('Filter Order', min_value=1.0, max_value=5.0, value=1.0, step=1.0,  format=None, key='filter_order_position', help=None, args=None, kwargs=None, disabled=False)
-
+    damping_fade_expo = st.sidebar.slider('Filter Exponent', min_value=1.0, max_value=3.0, value=1.0, step=1.0,  format=None, key='damping_fade_expo_position', help=None, args=None, kwargs=None, disabled=False)
     forward_damping_mult = st.sidebar.slider('Fade In', min_value=0.1, max_value=1.0, value=0.1, step=0.1,  format=None, key='fdamping_mult_position', help=None, args=None, kwargs=None, disabled=False)
     backward_damping_mult = st.sidebar.slider('Fade Out', min_value=0.1, max_value=1.0, value=0.1, step=0.1,  format=None, key='bdamping_mult_position', help=None, args=None, kwargs=None, disabled=False)
-    damping_fade_expo = st.sidebar.slider('Damping Fade Exponent', min_value=1.0, max_value=3.0, value=1.0, step=1.0,  format=None, key='damping_fade_expo_position', help=None, args=None, kwargs=None, disabled=False)
     
-    
-    col1, col2, col3 = st.columns((5,2,5))
+    soft_prior_list = tuple(config.model_list[model_picked]['soft_prior_options'])
+    soft_prior_picked =  st.sidebar.selectbox('Soft Prior', soft_prior_list, key='soft_prior_picked')
+
+    col1, col2, col3 = st.columns((3,6,3))
 
     s, s_pghi = get_gaver_sounds(initial_amplitude=1.0, hittype=impact_type, total_time=config.model_list[model_picked]['total_time'],\
                                     impulse_time=impulse_time, sample_rate=config.sample_rate,\
@@ -321,20 +324,21 @@ def main():
     s_recon_pghi = st.session_state['gaver_img_arr']
 
 
-    with col1:
-        colname = '<div style="padding-left: 30%;"><h3><b><i>Synthetic Reference</i></b></h3></div>'
-        st.markdown(colname, unsafe_allow_html=True)
-        st.image(s_pghi)
-        st.audio(s, format="audio/wav", start_time=0)
+    # with col1:
+    #     colname = '<div style="padding-left: 30%;"><h3><b><i>Synthetic Reference</i></b></h3></div>'
+    #     st.markdown(colname, unsafe_allow_html=True)
+    #     st.image(s_pghi)
+    #     st.audio(s, format="audio/wav", start_time=0)
     with col2:
-        vert_space = '<div style="padding: 40%;"></div>'
-        st.markdown(vert_space, unsafe_allow_html=True)
-        st.button("**Query Latent Space** =>", on_click=sample(session_uuid), type='primary')
-    with col3:
         colname = '<div style="padding-left: 30%;"><h3><b><i>Reconstructed Audio</i></b></h3></div>'
         st.markdown(colname, unsafe_allow_html=True)
         st.image(s_recon_pghi)
         st.audio(s_recon, format="audio/wav", start_time=0)#, sample_rate=16000)
+    # with col3:
+    #     colname = '<div style="padding-left: 30%;"><h3><b><i>Reconstructed Audio</i></b></h3></div>'
+    #     st.markdown(colname, unsafe_allow_html=True)
+    #     st.image(s_recon_pghi)
+    #     st.audio(s_recon, format="audio/wav", start_time=0)#, sample_rate=16000)
 
 
 if __name__ == '__main__':
