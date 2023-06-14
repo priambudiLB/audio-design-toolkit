@@ -336,12 +336,12 @@ def main():
     st.session_state['gaver_netE'] = netE
 
     try:
-        example_arr = os.listdir('../config/resources/examples/environmental_sounds')
+        example_arr = os.listdir(f'../config/resources/examples/{model_picked}')
     except:
         example_arr = []
     example_arr_extensionless = [os.path.splitext(file_name)[0] for file_name in example_arr]
-    example_arr_extensionless.insert(0, 'None')
-    example_arr_extensionless = example_arr_extensionless if model_picked == 'environmental_sounds' else []
+    example_arr_extensionless.insert(0, 'Random')
+    # example_arr_extensionless = example_arr_extensionless if model_picked == 'environmental_sounds' else []
     print(example_arr_extensionless)
     example_picked =  st.sidebar.selectbox('Select Example', example_arr_extensionless, key='example_picked')
     
@@ -406,12 +406,12 @@ def main():
     damping_fade_expo = st.sidebar.slider('Filter Exponent', min_value=1.0, max_value=3.0, value=damping_fade_expo_value, step=1.0,  format=None, key='damping_fade_expo_position', help=None, args=None, kwargs=None, disabled=False)
 
     try:
-        soft_prior_list = os.listdir('../config/resources/prototype')
+        soft_prior_list = os.listdir(f'../config/resources/prototype/{model_picked}')
     except:
         soft_prior_list = []
     soft_prior_list_extensionless = [os.path.splitext(file_name)[0] for file_name in soft_prior_list]
     soft_prior_list_extensionless.insert(0, 'None')
-    soft_prior_list_extensionless = soft_prior_list_extensionless if model_picked == 'environmental_sounds' else []
+    # soft_prior_list_extensionless = soft_prior_list_extensionless if model_picked == 'environmental_sounds' else []
     print(soft_prior_list_extensionless)
     # soft_prior_list = tuple(config.model_list[model_picked]['soft_prior_options'])
     soft_prior_picked =  st.sidebar.selectbox('Soft Prior', soft_prior_list_extensionless, key='soft_prior_picked')
