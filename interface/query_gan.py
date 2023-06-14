@@ -52,6 +52,7 @@ somehtml = '<h1 style="text-align:center">Analysis-Synthesis In The Latent Space
 config = util.get_config('../config/config.json')
 config = Namespace(**dict(**config))
 
+impulse_dict = {'Very Low': 0, 'Low': 1, 'Medium': 2, 'High': 3, 'Very High': 4}
 def pghi_stft(x):
     model = st.session_state['model_picked']
     stft_system = GaussTruncTF(hop_size=config.model_list[model]['hop_size'], stft_channels=config.stft_channels)
@@ -129,7 +130,7 @@ def get_gaver_sounds(initial_amplitude, impulse_time, filters, total_time, locs=
                              backward_damping_mult=None, forward_damping_mult=None, damping_fade_expo=None, 
                              filter_order=None,
                              session_uuid=''):
-    
+    model = st.session_state['model_picked']
     signal = gaver_sounds.get_synthetic_sounds(initial_amplitude=initial_amplitude, 
                                                 impulse_time=impulse_time, 
                                                 filters=filters, 
@@ -143,12 +144,12 @@ def get_gaver_sounds(initial_amplitude, impulse_time, filters, total_time, locs=
                         
     signal = signal/np.max(signal)
     os.makedirs(config.query_gan_tmp_audio_loc_path, exist_ok=True)
-    sf.write(f'{config.query_gan_tmp_audio_loc_path}{session_uuid}_temp_signal_loc.wav', signal.astype(float), 16000)
+    sf.write(f'{config.query_gan_tmp_audio_loc_path}{session_uuid}_temp_signal_loc.wav', signal.astype(float), config.sample_rate)
     audio_file = open(f'{config.query_gan_tmp_audio_loc_path}{session_uuid}_temp_signal_loc.wav', 'rb')
     audio_bytes = audio_file.read()
     
     fig =plt.figure(figsize=(7, 5))
-    a=librosa.display.specshow(get_spectrogram(signal)[0],x_axis='time', y_axis='linear',sr=config.sample_rate, hop_length=128)
+    a=librosa.display.specshow(get_spectrogram(signal)[0],x_axis='time', y_axis='linear',sr=config.sample_rate, hop_length=config.model_list[model]['hop_size'])
     io_buf = io.BytesIO()
     fig.savefig(io_buf, format='raw')
     io_buf.seek(0)
@@ -156,8 +157,8 @@ def get_gaver_sounds(initial_amplitude, impulse_time, filters, total_time, locs=
                         newshape=(int(fig.bbox.bounds[3]), int(fig.bbox.bounds[2]), -1))
     io_buf.close()
 
-    st.session_state['gaver_audio_loc'] = f'/tmp/audio-design-toolkit/query_gan/{session_uuid}_temp_signal_loc.wav'
-
+    st.session_state['gaver_audio_loc'] = f'{config.query_gan_tmp_audio_loc_path}{session_uuid}_temp_signal_loc.wav'
+    sample(session_uuid)
     return audio_bytes, img_arr#, '/tmp/audio-design-toolkit/query_gan/{session_uuid}_temp_signal_loc.wav'
 
 @st.cache_data
@@ -225,28 +226,40 @@ def encode_and_reconstruct(audio):
 
 
 def sample(session_uuid=''):
+    model = st.session_state['model_picked']
     audio_loc = st.session_state['gaver_audio_loc']
 
     audio, sr = librosa.load(audio_loc, sr=config.sample_rate)
     G = st.session_state['gaver_G']
     netE = st.session_state['gaver_netE']
 
-    encoded, reconstructed_audio_wav = encode_and_reconstruct(audio)
+    soft_prior_picked = st.session_state['soft_prior_picked']
+    try:
+        prior_centriod_embedding = np.load(f'../config/resources/prototype/{soft_prior_picked}.npy')
+    except:
+        prior_centriod_embedding = None
+
+    if prior_centriod_embedding is not None:
+        encoded, reconstructed_audio_wav = encode_and_reconstruct_with_soft_prior(audio, prior_centriod_embedding)
+    else:
+        encoded, reconstructed_audio_wav = encode_and_reconstruct(audio)
 
     os.makedirs('/tmp/audio-design-toolkit/query_gan/', exist_ok=True)
-    sf.write(f'/tmp/audio-design-toolkit/query_gan/{session_uuid}_reconstructed_audio_wav_recon.wav', reconstructed_audio_wav.astype(float), 16000)
+    sf.write(f'/tmp/audio-design-toolkit/query_gan/{session_uuid}_reconstructed_audio_wav_recon.wav', reconstructed_audio_wav.astype(float), config.sample_rate)
     audio_file = open(f'/tmp/audio-design-toolkit/query_gan/{session_uuid}_reconstructed_audio_wav_recon.wav', 'rb')
     audio_bytes = audio_file.read()
-    
-    fig =plt.figure(figsize=(7, 5))
-    a=librosa.display.specshow(get_spectrogram(reconstructed_audio_wav)[0],x_axis='time', y_axis='linear',sr=config.sample_rate, hop_length=128)
+    fig, ax = plt.subplots(nrows=2, figsize=(7,8))
+    a=librosa.display.specshow(get_spectrogram(reconstructed_audio_wav)[0], x_axis='time', y_axis='linear',sr=config.sample_rate, hop_length=config.model_list[model]['hop_size'], ax=ax[1])
+    b=librosa.display.waveshow(reconstructed_audio_wav, sr=config.sample_rate, ax=ax[0])
+    ax[0].set_xlim(0, config.model_list[model]['total_time'])
+    ax[0].set_xlabel('')
+    # ax[1].set_xlim(0, 4)
     io_buf = io.BytesIO()
     fig.savefig(io_buf, format='raw')
     io_buf.seek(0)
     img_arr = np.reshape(np.frombuffer(io_buf.getvalue(), dtype=np.uint8),
                         newshape=(int(fig.bbox.bounds[3]), int(fig.bbox.bounds[2]), -1))
     io_buf.close()
-
     
     st.session_state['gaver_audio_bytes'] = audio_bytes
     st.session_state['gaver_img_arr'] = img_arr
@@ -254,61 +267,165 @@ def sample(session_uuid=''):
 def map_dropdown_name(input):
     return config.model_list[input]['name']
 
-def main():
-    somehtml = '<h1 style="text-align:center">Analysis-Synthesis In The Latent Space</h1>'
-    st.markdown(somehtml, unsafe_allow_html=True)
+def get_locs(rate, burst=False):
+    if rate == 'Very Low':
+        return np.linspace(0.05, 4, 1)
+    if rate == 'Low':
+        return np.linspace(0.05, 3.7, 3)
+    if rate == 'Medium' and not burst:
+        return np.linspace(0.05, 4, 9)
+    if rate == 'Medium' and burst:
+        return [*np.linspace(0.05, 1.2, 5), *np.linspace(2.5, 3.7, 5)]
+    if rate == 'High' and not burst:
+        return np.linspace(0.05, 3.9, 15)
+    if rate == 'High' and burst:
+        return [*np.linspace(0.05, 1.2, 8), *np.linspace(1.7, 2.2, 5), *np.linspace(3, 3.9, 5)]
+    if rate == 'Very High' and not burst:
+        return np.linspace(0.05, 3.9, 20)
+    if rate == 'Very High' and burst:
+        return [*np.linspace(0.05, 1.2, 12), *np.linspace(1.7, 2.2, 8), *np.linspace(3, 3.9, 8)]
 
+def encode_and_reconstruct_with_soft_prior(audio, prior_centriod_embedding):
+    model = st.session_state['model_picked']
+    audio_pghi = preprocess_signal(audio)
+    G = st.session_state['gaver_G']
+    netE = st.session_state['gaver_netE']
+    
+    im_min = config.im_min
+    im_max = config.im_max
+    pghi_min = config.pghi_min
+    pghi_max = config.pghi_max
+    
+    audio_pghi = util.zeropad(audio_pghi, config.n_frames * config.model_list[model]['hop_size'] )
+    audio_pghi = util.pghi_stft(audio_pghi, hop_size=config.model_list[model]['hop_size'], stft_channels=config.stft_channels)
+    audio_pghi = np.clip(audio_pghi + -50*(audio_pghi<(-1*25)), -50, 0)
+    audio_pghi = util.renormalize(audio_pghi, (np.min(audio_pghi), np.max(audio_pghi)), (im_min, im_max))
+
+    audio_pghi = torch.from_numpy(audio_pghi).float().cuda().unsqueeze(dim=0)
+    mask = torch.ones_like(audio_pghi)[:, :1, :, :]
+    net_input = torch.cat([audio_pghi, mask], dim=1).cuda()
+    
+    with torch.no_grad():
+        encoded = netE(net_input)
+    print('prior_centriod_embedding', prior_centriod_embedding.shape)
+    print('encoded', encoded.shape)
+
+    prior_centriod_embedding = torch.from_numpy(prior_centriod_embedding).cuda().float()
+    encoded = encoded + 0.7*(prior_centriod_embedding - encoded) #Soft prior changed line
+    reconstructed_audio = G.synthesis(torch.stack([encoded] * 14, dim=1))
+    filler = torch.full((1, 1, 1, reconstructed_audio[0].shape[1]), torch.min(reconstructed_audio)).cuda()
+    reconstructed_audio = torch.cat([reconstructed_audio, filler], dim=2)
+    reconstructed_audio = util.renormalize(reconstructed_audio, (torch.min(reconstructed_audio), torch.max(reconstructed_audio)), (pghi_min, pghi_max))
+    reconstructed_audio = reconstructed_audio.detach().cpu().numpy()[0]
+    reconstructed_audio_wav = util.pghi_istft(reconstructed_audio, hop_size=config.model_list[model]['hop_size'], stft_channels=config.stft_channels)
+    return encoded, reconstructed_audio_wav
+
+
+def main():
     if 'session_uuid' not in st.session_state:
         st.session_state['session_uuid'] = str(uuid.uuid4())
     session_uuid = st.session_state['session_uuid']
-
-    st.sidebar.title('Model Options')
 
     model_names = []
     for key in config.model_list:
         model_names.append(key)
     model_names = tuple(model_names)
-    model_picked =  st.sidebar.selectbox('Select a model', model_names, format_func=map_dropdown_name, key='model_picked')
+    model_picked =  st.sidebar.selectbox('Select Model', model_names, format_func=map_dropdown_name, key='model_picked')
     G, netE = get_model(model_picked)
-    print('======================================')
-    print(config.model_list[model_picked])
     st.session_state['gaver_G'] = G
     st.session_state['gaver_netE'] = netE
 
-    rate_locs_0_per_sec = config.rate_locs_0_per_sec
-    rate_locs_1_per_sec = config.rate_locs_1_per_sec
-    rate_locs_2_per_sec = config.rate_locs_2_per_sec
-    rate_locs_2irreg_per_sec = config.rate_locs_2irreg_per_sec
-    rate_locs_3_per_sec = config.rate_locs_3_per_sec
-    rate_locs_4_per_sec = config.rate_locs_4_per_sec
-    locs = [rate_locs_0_per_sec, rate_locs_1_per_sec, rate_locs_2_per_sec, rate_locs_3_per_sec, rate_locs_4_per_sec]
+    try:
+        example_arr = os.listdir(f'../config/resources/examples/{model_picked}')
+    except:
+        example_arr = []
+    example_arr_extensionless = [os.path.splitext(file_name)[0] for file_name in example_arr]
+    example_arr_extensionless.insert(0, 'Random')
+    # example_arr_extensionless = example_arr_extensionless if model_picked == 'environmental_sounds' else []
+    print(example_arr_extensionless)
+    example_picked =  st.sidebar.selectbox('Select Example', example_arr_extensionless, key='example_picked')
+    
+    try:
+        config_from_example = util.get_config(f'../config/resources/examples/environmental_sounds/{example_picked}.json')
+    except:
+        config_from_example = None
 
-
-    st.sidebar.title('Parameters Options')
+    # rate_locs_0_per_sec = np.linspace(0.05, 4, 1)
+    # rate_locs_1_per_sec = np.linspace(0.05, 3.9, 3)
+    # rate_locs_2_per_sec = np.linspace(0.05, 3.9, 5)
+    # rate_locs_3_per_sec = np.linspace(0.05, 3.9, 8)
+    # rate_locs_4_per_sec = np.linspace(0.05, 3.9, 20)
+    # locs = [rate_locs_0_per_sec, rate_locs_1_per_sec, rate_locs_2_per_sec, rate_locs_3_per_sec, rate_locs_4_per_sec]
+    
+    # TODO: configure this
+    # locs_value = locs
+    # locs_value = [config_from_example['locs']] if config_from_example is not None else locs
 
     impact_type = 'hit'
-    rate =  st.sidebar.selectbox('Rate', (0,1,2,3,4), key='rate_position',)
-    
-    impulse_time = st.sidebar.slider('Impulse Width', min_value=0.0, max_value=2.0, value=0.05, step=0.01,  format=None, key='impulse_width_position', help=None, args=None, kwargs=None, disabled=False)
+    impulse_time_value = float(config_from_example['impulse_time'] if config_from_example is not None else 0.05)
+    impulse_time = st.sidebar.slider('Impulse Width', min_value=0.0, max_value=2.0, value=impulse_time_value, step=0.01,  format=None, key='impulse_width_position', help=None, args=None, kwargs=None, disabled=False)
 
-    
+    rate_value = config_from_example['locs'] if config_from_example is not None else 'Very Low'
+    impulse_rate_config = []
+    for dic in config.impulse_rate:
+        impulse_rate_config.append(dic['label'])
+    print(impulse_rate_config)
+    rate =  st.sidebar.selectbox('Number of Impulse', impulse_rate_config, index=impulse_dict[rate_value], key='rate_position',)
+
+    add_irregularity_value = config_from_example['locs_burst'] if config_from_example is not None else False
+    print('add_irregularity_value', add_irregularity_value, config_from_example)
+    add_irregularity = st.sidebar.checkbox('Add Irregularity', value=add_irregularity_value)
+
+    # locs = [get_locs('Very Low', add_irregularity), 
+    #     get_locs('Low', add_irregularity),
+    #     get_locs('Medium', add_irregularity),
+    #     get_locs('High', add_irregularity),
+    #     get_locs('Very High', add_irregularity)
+    # ]
+
+    # TODO: configure this
+    locs_value = get_locs(rate, add_irregularity)
+    print(rate, add_irregularity, locs_value)
+
+    trail_lf_value = config_from_example['trail_lf'] if config_from_example is not None else 10
+    trail_hf_value = config_from_example['trail_hf'] if config_from_example is not None else 700
     lf, hf = st.sidebar.select_slider(
-                            'Select a frequency band for the impulse',
+                            'Frequency Band',
                             options=np.arange(10,7999,10),
-                            value=(10, 700))
+                            value=(trail_lf_value, trail_hf_value))
     
-    filter_order = st.sidebar.slider('Filter Order', min_value=1.0, max_value=5.0, value=1.0, step=1.0,  format=None, key='filter_order_position', help=None, args=None, kwargs=None, disabled=False)
+    forward_damping_mult_value = float(config_from_example['forward_damping_mult'] if config_from_example is not None else 0.1)
+    backward_damping_mult_value = float(config_from_example['backward_damping_mult'] if config_from_example is not None else 0.1)
+    forward_damping_mult = st.sidebar.slider('Fade In', min_value=0.1, max_value=1.0, value=forward_damping_mult_value, step=0.1,  format=None, key='fdamping_mult_position', help=None, args=None, kwargs=None, disabled=False)
+    backward_damping_mult = st.sidebar.slider('Fade Out', min_value=0.1, max_value=1.0, value=backward_damping_mult_value, step=0.1,  format=None, key='bdamping_mult_position', help=None, args=None, kwargs=None, disabled=False)
+    
+    filter_order_value = float(config_from_example['filter_order'] if config_from_example is not None else 1.0)
+    filter_order = st.sidebar.slider('Filter Order', min_value=1.0, max_value=5.0, value=filter_order_value, step=1.0,  format=None, key='filter_order_position', help=None, args=None, kwargs=None, disabled=False)
+    
+    damping_fade_expo_value = float(config_from_example['damping_fade_expo'] if config_from_example is not None else 1.0)
+    damping_fade_expo = st.sidebar.slider('Filter Exponent', min_value=1.0, max_value=3.0, value=damping_fade_expo_value, step=1.0,  format=None, key='damping_fade_expo_position', help=None, args=None, kwargs=None, disabled=False)
 
-    forward_damping_mult = st.sidebar.slider('Fade In', min_value=0.1, max_value=1.0, value=0.1, step=0.1,  format=None, key='fdamping_mult_position', help=None, args=None, kwargs=None, disabled=False)
-    backward_damping_mult = st.sidebar.slider('Fade Out', min_value=0.1, max_value=1.0, value=0.1, step=0.1,  format=None, key='bdamping_mult_position', help=None, args=None, kwargs=None, disabled=False)
-    damping_fade_expo = st.sidebar.slider('Damping Fade Exponent', min_value=1.0, max_value=3.0, value=1.0, step=1.0,  format=None, key='damping_fade_expo_position', help=None, args=None, kwargs=None, disabled=False)
-    
-    
-    col1, col2, col3 = st.columns((5,2,5))
+    try:
+        soft_prior_list = os.listdir(f'../config/resources/prototype/{model_picked}')
+    except:
+        soft_prior_list = []
+    soft_prior_list_extensionless = [os.path.splitext(file_name)[0] for file_name in soft_prior_list]
+    soft_prior_list_extensionless.insert(0, 'None')
+    # soft_prior_list_extensionless = soft_prior_list_extensionless if model_picked == 'environmental_sounds' else []
+    print(soft_prior_list_extensionless)
+    # soft_prior_list = tuple(config.model_list[model_picked]['soft_prior_options'])
+    soft_prior_picked =  st.sidebar.selectbox('Soft Prior', soft_prior_list_extensionless, key='soft_prior_picked')
+
+    # try:
+    #     test = np.load(f'../config/resources/prototype/{soft_prior_picked}.npy')
+    # except:
+    #     test = None
+    # print('npy', test.shape)
+    col1, col2, col3 = st.columns((3,6,3))
 
     s, s_pghi = get_gaver_sounds(initial_amplitude=1.0, hittype=impact_type, total_time=config.model_list[model_picked]['total_time'],\
                                     impulse_time=impulse_time, sample_rate=config.sample_rate,\
-                                    filters=[lf, hf], locs=locs[rate],\
+                                    filters=[lf, hf], locs=locs_value,\
                                     filter_order=filter_order, \
                                     forward_damping_mult=forward_damping_mult, \
                                     backward_damping_mult=backward_damping_mult, \
@@ -321,22 +438,21 @@ def main():
     
     s_recon = st.session_state['gaver_audio_bytes']
     s_recon_pghi = st.session_state['gaver_img_arr']
-    
 
-    with col1:
-        colname = '<div style="padding-left: 30%;"><h3><b><i>Synthetic Reference</i></b></h3></div>'
-        st.markdown(colname, unsafe_allow_html=True)
-        st.image(s_pghi)
-        st.audio(s, format="audio/wav", start_time=0)
+
+    # with col1:
+    #     colname = '<div style="padding-left: 30%;"><h3><b><i>Synthetic Reference</i></b></h3></div>'
+    #     st.markdown(colname, unsafe_allow_html=True)
+    #     st.image(s_pghi)
+    #     st.audio(s, format="audio/wav", start_time=0)
     with col2:
-        vert_space = '<div style="padding: 40%;"></div>'
-        st.markdown(vert_space, unsafe_allow_html=True)
-        st.button("**Query Latent Space** =>", on_click=sample(session_uuid), type='primary')
-    with col3:
-        colname = '<div style="padding-left: 30%;"><h3><b><i>Reconstructed Audio</i></b></h3></div>'
-        st.markdown(colname, unsafe_allow_html=True)
         st.image(s_recon_pghi)
         st.audio(s_recon, format="audio/wav", start_time=0)#, sample_rate=16000)
+    # with col3:
+    #     colname = '<div style="padding-left: 30%;"><h3><b><i>Reconstructed Audio</i></b></h3></div>'
+    #     st.markdown(colname, unsafe_allow_html=True)
+    #     st.image(s_recon_pghi)
+    #     st.audio(s_recon, format="audio/wav", start_time=0)#, sample_rate=16000)
 
 
 if __name__ == '__main__':

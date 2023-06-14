@@ -67,7 +67,7 @@ def pcm2wav(sample_rate, pcm_voice):
     #     return pcm_voice
     # else:
     sampleNum = len(pcm_voice)
-    print(sampleNum)
+    # print(sampleNum)
     rHeaderInfo = "RIFF".encode()
     rHeaderInfo += struct.pack('i', sampleNum + 44)
     rHeaderInfo += 'WAVEfmt '.encode()
@@ -106,7 +106,7 @@ def factorize_weights(_generator):
     values_ind = np.array([a for a in range(len(values))])
     temp = np.array(sorted(zip(values, values_ind), key=lambda x: x[0], reverse=True))
     values, values_ind = temp[:, 0], temp[:, 1]
-    print(values, values_ind)
+    # print(values, values_ind)
     return boundaries, values, layer_ids, values_ind
 
 @st.cache_data
@@ -136,7 +136,7 @@ def sample(pos, session_uuid=''):
     G = get_sefa_model(model).to(device).eval()
 
     boundaries, values, layer_ids, values_ind = factorize_weights(G)
-    print(values_ind[0], values_ind, boundaries)
+    # print(values_ind[0], values_ind, boundaries)
     boundary_1 = boundaries[int(values_ind[0])] #Looking at the first semantic only
     boundary_2 = boundaries[int(values_ind[1])] #Looking at the second semantic only
     boundary_3 = boundaries[int(values_ind[2])] #Looking at the first semantic only
@@ -151,8 +151,9 @@ def sample(pos, session_uuid=''):
 
     if 'sefa_initial_sample' not in st.session_state:
         st.session_state['sefa_initial_sample'] = torch.from_numpy(np.random.randn(1, G.z_dim))
-        np.savez('z_tensor.npz',z=st.session_state['sefa_initial_sample'].numpy())
+        #np.savez(f'{config.sefa_tmp_audio_loc_path}{session_uuid}z_tensor.npz',z=st.session_state['sefa_initial_sample'].numpy())
 
+    print(st.session_state['sefa_initial_sample'])
     z = st.session_state['sefa_initial_sample'].to(device)
     # label = torch.zeros([1, G.z_dim], device=device)
 
@@ -176,10 +177,10 @@ def sample(pos, session_uuid=''):
     temp_z[:, layer_ids, :] += boundary_10 * pos[9]
 
 
-    print('generating')
+    # print('generating')
     img = G.synthesis(torch.from_numpy(temp_z).cuda())
 
-    print("--- %s seconds ---" % (time.time() - start_time))
+    # print("--- %s seconds ---" % (time.time() - start_time))
     start_time = time.time()
 
     img = (img  * 127.5+ 128).clamp(0, 255).to(torch.uint8)
@@ -191,24 +192,26 @@ def sample(pos, session_uuid=''):
 
     audio = pghi_istft(img_1)
 
-    fig =plt.figure(figsize=(7, 5))
-    a=librosa.display.specshow(img_1[0],x_axis='time', y_axis='linear',sr=16000)
-
+    fig, ax = plt.subplots(nrows=2, figsize=(7,8))
+    a=librosa.display.specshow(img_1[0],x_axis='time', y_axis='linear',sr=config.sample_rate, ax=ax[1])
+    b=librosa.display.waveshow(audio, sr=config.sample_rate, axis='time', ax=ax[0])
+    ax[0].set_xlim(0, config.model_list[model]['total_time'])
+    ax[0].set_xlabel('')
     io_buf = io.BytesIO()
     fig.savefig(io_buf, format='raw')
     io_buf.seek(0)
     img_arr = np.reshape(np.frombuffer(io_buf.getvalue(), dtype=np.uint8),
                         newshape=(int(fig.bbox.bounds[3]), int(fig.bbox.bounds[2]), -1))
     io_buf.close()
-    print("--- %s seconds ---" % (time.time() - start_time))
+    # print("--- %s seconds ---" % (time.time() - start_time))
     #print(audio)
     # audio = audio.tobytes()
     #audio = pcm2wav(16000, audio)
     # print(audio)
 
     os.makedirs(config.sefa_tmp_audio_loc_path, exist_ok=True)
-    sf.write(f'{config.sefa_tmp_audio_loc_path}{session_uuid}_sefa_interface_temp_audio_loc.wav', audio.astype(float), 16000)
-    print('--------------------------------------------------')
+    sf.write(f'{config.sefa_tmp_audio_loc_path}{session_uuid}_sefa_interface_temp_audio_loc.wav', audio.astype(float), config.sample_rate)
+    # print('--------------------------------------------------')
 
 
     audio_file = open(f'{config.sefa_tmp_audio_loc_path}{session_uuid}_sefa_interface_temp_audio_loc.wav', 'rb')
@@ -241,54 +244,60 @@ def draw_audio():
 #     '''
 #     audio_placeholder.markdown(audio_str, unsafe_allow_html=True)
 
-def change_z():
-    selected_option = st.session_state['sefa_selected_preset_option']
-    if selected_option == 'Random':
-        if 'sefa_initial_sample' in st.session_state:
-            del st.session_state['sefa_initial_sample'] 
-    else:
-        with np.load(selected_option) as data:
-            print(data)
-            new_z = data['z']
-        st.session_state['sefa_initial_sample'] = torch.from_numpy(new_z)
-    st.session_state['sefa_slider_1_position'] = 0
-    st.session_state['sefa_slider_2_position'] = 0
+# def change_z(a):
+#     print(a)
+#     selected_option = st.session_state['sefa_selected_preset_option']
+#     if selected_option == 'Random':
+#         if 'sefa_initial_sample' in st.session_state:
+#             del st.session_state['sefa_initial_sample'] 
+#     else:
+#         with np.load(selected_option) as data:
+#             print(data)
+#             new_z = data['z']
+#         st.session_state['sefa_initial_sample'] = torch.from_numpy(new_z)
+#     st.session_state['sefa_slider_1_position'] = 0
+#     st.session_state['sefa_slider_2_position'] = 0
 
 def map_dropdown_name(input):
     return config.model_list[input]['name']
 
 def main():
-
-    
-    st.markdown("<h1 style='text-align: center;'>Semantic Factorization <br/>(Adapted From Computer Vision)</h1>", unsafe_allow_html=True)
-#     np.random.seed(123)
-#     torch.manual_seed(123)  
-
     if 'session_uuid' not in st.session_state:
         st.session_state['session_uuid'] = str(uuid.uuid4())
     session_uuid = st.session_state['session_uuid']
-
-    st.sidebar.title('Model Options')
 
     model_names = []
     for key in config.model_list:
         model_names.append(key)
     model_names = tuple(model_names)
-    model_picked =  st.sidebar.selectbox('Select a model', model_names, format_func=map_dropdown_name, key='model_picked')
+    model_picked =  st.sidebar.selectbox('Select Model', model_names, format_func=map_dropdown_name, key='model_picked')
 
-    option = st.sidebar.selectbox(
-    'Select a preset sample',
-    ['Random (refresh page)'],key='selected_preset_option', on_change=change_z)
+    try:
+        example_arr = os.listdir(f'../config/resources/sefa-examples/{model_picked}')
+    except:
+        example_arr = []
+    example_arr_extensionless = [os.path.splitext(file_name)[0] for file_name in example_arr]
+    example_arr_extensionless.insert(0, 'Random')
+    sefa_selected_preset_option = st.sidebar.selectbox(
+    'Select Example',
+    example_arr_extensionless, key='selected_preset_option')
 
-    # st.sidebar.write('You selected:', option)
-
-
-    st.sidebar.title('Dimensions')
+    if sefa_selected_preset_option == 'Random':
+        if 'sefa_initial_sample' in st.session_state:
+            del st.session_state['sefa_initial_sample'] 
+    else:
+        try:
+            config_from_example = np.load(f'../config/resources/sefa-examples/{sefa_selected_preset_option}.npy')
+            new_z = config_from_example['z']
+            st.session_state['sefa_initial_sample'] = torch.from_numpy(new_z)
+        except:
+            config_from_example = None
+        # with np.load(f'../config/resources/sefa-examples/{sefa_selected_preset_option}.npy') as data:
+        #     print(data)
+        # new_z = data['z']
+        # st.session_state['sefa_initial_sample'] = torch.from_numpy(new_z)
 
     slider_1_position=st.sidebar.slider('Dimension 1', min_value=-5.0, max_value=5.0, value=0.0, step=0.01,  format=None, key='slider_1_position', help=None, args=None, kwargs=None, disabled=False)
-    # slider_2_position=st.sidebar.slider('Dimension 2 (Rate)', min_value=-5.0, max_value=5.0, value=0.0, step=0.01,  format=None, key='slider_2_position', help=None, args=None, kwargs=None, disabled=False)
-    # slider_3_position=st.sidebar.slider('Dimension 3 (Impact Type)', min_value=-5.0, max_value=5.0, value=0.0, step=0.01,  format=None, key='slider_3_position', help=None, args=None, kwargs=None, disabled=False)
-    # slider_4_position=st.sidebar.slider('Dimension 4 (Brightness)', min_value=-5.0, max_value=5.0, value=0.0, step=0.01,  format=None, key='slider_4_position', help=None, args=None, kwargs=None, disabled=False)
     slider_2_position=st.sidebar.slider('Dimension 2', min_value=-5.0, max_value=5.0, value=0.0, step=0.01,  format=None, key='slider_2_position', help=None, args=None, kwargs=None, disabled=False)
     slider_3_position=st.sidebar.slider('Dimension 3', min_value=-5.0, max_value=5.0, value=0.0, step=0.01,  format=None, key='slider_3_position', help=None, args=None, kwargs=None, disabled=False)
     slider_4_position=st.sidebar.slider('Dimension 4', min_value=-5.0, max_value=5.0, value=0.0, step=0.01,  format=None, key='slider_4_position', help=None, args=None, kwargs=None, disabled=False)
