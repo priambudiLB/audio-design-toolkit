@@ -191,9 +191,12 @@ def sample(pos, session_uuid=''):
 
     audio = pghi_istft(img_1)
 
-    fig =plt.figure(figsize=(7, 5))
-    a=librosa.display.specshow(img_1[0],x_axis='time', y_axis='linear',sr=16000)
-
+    fig, ax = plt.subplots(nrows=2, figsize=(7, 10))
+    a=librosa.display.specshow(img_1[0],x_axis='time', y_axis='linear',sr=config.sample_rate, ax=ax[1])
+    ax[1].set(title='Spectogram')
+    ax[1].label_outer()
+    b=librosa.display.waveshow(audio, sr=config.sample_rate, axis='time', ax=ax[0])
+    ax[0].set(title='Waveform')
     io_buf = io.BytesIO()
     fig.savefig(io_buf, format='raw')
     io_buf.seek(0)
@@ -207,7 +210,7 @@ def sample(pos, session_uuid=''):
     # print(audio)
 
     os.makedirs(config.sefa_tmp_audio_loc_path, exist_ok=True)
-    sf.write(f'{config.sefa_tmp_audio_loc_path}{session_uuid}_sefa_interface_temp_audio_loc.wav', audio.astype(float), 16000)
+    sf.write(f'{config.sefa_tmp_audio_loc_path}{session_uuid}_sefa_interface_temp_audio_loc.wav', audio.astype(float), config.sample_rate)
     print('--------------------------------------------------')
 
 
@@ -258,32 +261,21 @@ def map_dropdown_name(input):
     return config.model_list[input]['name']
 
 def main():
-
-    
-    st.markdown("<h1 style='text-align: center;'>Semantic Factorization <br/>(Adapted From Computer Vision)</h1>", unsafe_allow_html=True)
-#     np.random.seed(123)
-#     torch.manual_seed(123)  
-
     if 'session_uuid' not in st.session_state:
         st.session_state['session_uuid'] = str(uuid.uuid4())
     session_uuid = st.session_state['session_uuid']
-
-    st.sidebar.title('Model Options')
 
     model_names = []
     for key in config.model_list:
         model_names.append(key)
     model_names = tuple(model_names)
-    model_picked =  st.sidebar.selectbox('Select a model', model_names, format_func=map_dropdown_name, key='model_picked')
+    model_picked =  st.sidebar.selectbox('Select Model', model_names, format_func=map_dropdown_name, key='model_picked')
 
     option = st.sidebar.selectbox(
-    'Select a preset sample',
+    'Select Example',
     ['Random (refresh page)'],key='selected_preset_option', on_change=change_z)
 
     # st.sidebar.write('You selected:', option)
-
-
-    st.sidebar.title('Dimensions')
 
     slider_1_position=st.sidebar.slider('Dimension 1', min_value=-5.0, max_value=5.0, value=0.0, step=0.01,  format=None, key='slider_1_position', help=None, args=None, kwargs=None, disabled=False)
     # slider_2_position=st.sidebar.slider('Dimension 2 (Rate)', min_value=-5.0, max_value=5.0, value=0.0, step=0.01,  format=None, key='slider_2_position', help=None, args=None, kwargs=None, disabled=False)
