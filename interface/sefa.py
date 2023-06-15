@@ -34,7 +34,7 @@ from tifresi.transforms import log_spectrogram
 from tifresi.transforms import inv_log_spectrogram
 
 import time
-
+import pyloudnorm as pyln
 
 import warnings
 warnings.filterwarnings("ignore", category=DeprecationWarning) 
@@ -47,6 +47,8 @@ from argparse import Namespace
 
 config = util.get_config('../config/config.json')
 config = Namespace(**dict(**config))
+
+meter = pyln.Meter(16000)
 
 def pghi_istft(x):
     model = st.session_state['model_picked']
@@ -84,7 +86,34 @@ def pcm2wav(sample_rate, pcm_voice):
     return rHeaderInfo
 
 @st.cache_data
-def factorize_weights(_generator):
+def factorize_weights_hitsscratches(_generator):
+    layers = ['b4','b8','b16','b32','b64','b128','b256'] #layernames in Synthesis network
+    layers.extend(layers) ## THIS IS SUPER IMPORTANT. Remember, the dimensionality of y is twice the number of feature maps (see first Style GAN paper)
+    layers.sort(key=lambda x: int(x.replace('b','')))
+
+    weights = []
+    layer_ids = []
+    for layer_id, layer_name in enumerate(layers):
+        # weight = _generator.synthesis.__getattr__(layer_name).__getattr__('torgb').affine.weight.T
+        weight = _generator.synthesis.__getattr__(layer_name).__getattr__('conv1').affine.weight.T
+        weights.append(weight.cpu().detach().numpy())
+        layer_ids.append(layer_id)
+        
+    weight = np.concatenate(weights, axis=1).astype(np.float32)
+    weight = weight / np.linalg.norm(weight, axis=0, keepdims=True)
+    eigen_values, eigen_vectors = np.linalg.eig(weight.dot(weight.T))
+    boundaries, values = eigen_vectors.T, eigen_values
+
+    #Sorting values
+    values_ind = np.array([a for a in range(len(values))])
+    temp = np.array(sorted(zip(values, values_ind), key=lambda x: x[0], reverse=True))
+    values, values_ind = temp[:, 0], temp[:, 1]
+    # print(values, values_ind)
+    return boundaries, values, layer_ids, values_ind
+
+
+@st.cache_data
+def factorize_weights_envsounds(_generator):
     layers = ['b4','b8','b16','b32','b64','b128','b256'] #layernames in Synthesis network
     layers.extend(layers) ## THIS IS SUPER IMPORTANT. Remember, the dimensionality of y is twice the number of feature maps (see first Style GAN paper)
     layers.sort(key=lambda x: int(x.replace('b','')))
@@ -110,7 +139,7 @@ def factorize_weights(_generator):
     return boundaries, values, layer_ids, values_ind
 
 @st.cache_data
-def get_sefa_model(model):
+def get_hitscratch_sefa_model(model):
     print('getting model', model)
     try:
         stylegan_pkl = config.model_list[model]['ckpt_stylegan2_path']
@@ -127,15 +156,43 @@ def get_sefa_model(model):
         network = pickle.load(f)
         G = network['G'].eval().cuda()
         # G = legacy.load_network_pkl(f)['G']
-        st.session_state['sefa_G'] = G
-    return st.session_state['sefa_G']
+        st.session_state['hitscratch_sefa_G'] = G
+    return st.session_state['hitscratch_sefa_G']
+
+
+@st.cache_data
+def get_envsounds_sefa_model(model):
+    print('getting model', model)
+    try:
+        stylegan_pkl = config.model_list[model]['ckpt_stylegan2_path']
+        stylegan_pkl_url = config.model_list[model]['stylegan_pkl_url']
+    except:
+        print("Unknown Model!")
+        return None, None
+
+    if not os.path.isfile(stylegan_pkl):
+        os.makedirs(config.model_list[model]['ckpt_download_stylegan2_path'], exist_ok=True)
+        urllib.request.urlretrieve(stylegan_pkl_url, stylegan_pkl)
+
+    with dnnlib.util.open_url(stylegan_pkl) as f:
+        network = pickle.load(f)
+        G = network['G'].eval().cuda()
+        # G = legacy.load_network_pkl(f)['G']
+        st.session_state['envsounds_sefa_G'] = G
+    return st.session_state['envsounds_sefa_G']
 
 def sample(pos, session_uuid=''):
     model = st.session_state['model_picked']
     device = torch.device('cuda')
-    G = get_sefa_model(model).to(device).eval()
+    # G = get_sefa_model(model).to(device).eval()
 
-    boundaries, values, layer_ids, values_ind = factorize_weights(G)
+    if model == 'hits_scratches':
+        G = get_hitscratch_sefa_model(model)
+        boundaries, values, layer_ids, values_ind = factorize_weights_hitsscratches(G)
+    elif model == 'environmental_sounds':
+        G = get_envsounds_sefa_model(model)
+        boundaries, values, layer_ids, values_ind = factorize_weights_envsounds(G)
+
     # print(values_ind[0], values_ind, boundaries)
     boundary_1 = boundaries[int(values_ind[0])] #Looking at the first semantic only
     boundary_2 = boundaries[int(values_ind[1])] #Looking at the second semantic only
@@ -149,18 +206,20 @@ def sample(pos, session_uuid=''):
     boundary_10 = boundaries[int(values_ind[9])] #Looking at the second semantic only
 
 
-    if 'sefa_initial_sample' not in st.session_state:
-        st.session_state['sefa_initial_sample'] = torch.from_numpy(np.random.randn(1, G.z_dim))
-        #np.savez(f'{config.sefa_tmp_audio_loc_path}{session_uuid}z_tensor.npz',z=st.session_state['sefa_initial_sample'].numpy())
+    if f'%s_sefa_initial_sample'%model not in st.session_state:
+        st.session_state[f'%s_sefa_initial_sample'%model] = torch.from_numpy(np.random.randn(1, G.z_dim))
+        #np.savez(f'{config.sefa_tmp_audio_loc_path}{session_uuid}z_tensor.npz',z=st.session_state[f'%s_sefa_initial_sample'%model].numpy())
 
-    print(st.session_state['sefa_initial_sample'])
-    z = st.session_state['sefa_initial_sample'].to(device)
+    z = st.session_state[f'%s_sefa_initial_sample'%model].to(device)
     # label = torch.zeros([1, G.z_dim], device=device)
 
     
     start_time = time.time()
 
-    code = G.mapping(z, None)
+    if 'Random' not in st.session_state['selected_preset_option']: ## Random bug fix. When example is selected, we receive the W vector. 
+        code = torch.stack([z] * 14, dim=1)
+    else:
+        code = G.mapping(z, None)
     # w_avg = G.mapping.w_avg
     # code = w_avg + (code - w_avg) * truncation_psi # Truncation not needed?
     code = code.detach().cpu().numpy()
@@ -192,22 +251,31 @@ def sample(pos, session_uuid=''):
 
     audio = pghi_istft(img_1)
 
-    fig, ax = plt.subplots(nrows=2, figsize=(7,8))
-    a=librosa.display.specshow(img_1[0],x_axis='time', y_axis='linear',sr=config.sample_rate, ax=ax[1])
-    b=librosa.display.waveshow(audio, sr=config.sample_rate, axis='time', ax=ax[0])
-    ax[0].set_xlim(0, config.model_list[model]['total_time'])
-    ax[0].set_xlabel('')
+    loudness = meter.integrated_loudness(audio)
+    # loudness normalize audio to -12 dB LUFS
+    audio = pyln.normalize.loudness(audio, loudness, -14.0)
+
+
+    #Uncomment for final study
+    # fig, ax = plt.subplots(nrows=2, figsize=(7,8))
+    # a=librosa.display.specshow(img_1[0],x_axis='time', y_axis='linear',sr=config.sample_rate, hop_length=config.model_list[model]['hop_size'],ax=ax[1])
+    # b=librosa.display.waveshow(audio, sr=config.sample_rate, axis='time', ax=ax[0])
+    # ax[0].set_xlim(0, config.model_list[model]['total_time'])
+    # ax[0].set_xlabel('')
+
+    fig, ax = plt.subplots(nrows=1, figsize=(7,5))
+    a=librosa.display.specshow(img_1[0],x_axis='time', y_axis='linear',sr=config.sample_rate, hop_length=config.model_list[model]['hop_size'], ax=ax)
+    ax.set_xlim(0, config.model_list[model]['total_time'])
+    # ax.set_xlabel('')
+
+
     io_buf = io.BytesIO()
     fig.savefig(io_buf, format='raw')
     io_buf.seek(0)
     img_arr = np.reshape(np.frombuffer(io_buf.getvalue(), dtype=np.uint8),
                         newshape=(int(fig.bbox.bounds[3]), int(fig.bbox.bounds[2]), -1))
     io_buf.close()
-    # print("--- %s seconds ---" % (time.time() - start_time))
-    #print(audio)
-    # audio = audio.tobytes()
-    #audio = pcm2wav(16000, audio)
-    # print(audio)
+
 
     os.makedirs(config.sefa_tmp_audio_loc_path, exist_ok=True)
     sf.write(f'{config.sefa_tmp_audio_loc_path}{session_uuid}_sefa_interface_temp_audio_loc.wav', audio.astype(float), config.sample_rate)
@@ -248,13 +316,13 @@ def draw_audio():
 #     print(a)
 #     selected_option = st.session_state['sefa_selected_preset_option']
 #     if selected_option == 'Random':
-#         if 'sefa_initial_sample' in st.session_state:
-#             del st.session_state['sefa_initial_sample'] 
+#         if f'%s_sefa_initial_sample'%model in st.session_state:
+#             del st.session_state[f'%s_sefa_initial_sample'%model] 
 #     else:
 #         with np.load(selected_option) as data:
 #             print(data)
 #             new_z = data['z']
-#         st.session_state['sefa_initial_sample'] = torch.from_numpy(new_z)
+#         st.session_state[f'%s_sefa_initial_sample'%model] = torch.from_numpy(new_z)
 #     st.session_state['sefa_slider_1_position'] = 0
 #     st.session_state['sefa_slider_2_position'] = 0
 
@@ -262,6 +330,9 @@ def map_dropdown_name(input):
     return config.model_list[input]['name']
 
 def main():
+    st.markdown("<h1 style='text-align: center;'>Exploring Environmental Sound Spaces - 2</h1>", unsafe_allow_html=True)
+
+
     if 'session_uuid' not in st.session_state:
         st.session_state['session_uuid'] = str(uuid.uuid4())
     session_uuid = st.session_state['session_uuid']
@@ -277,25 +348,27 @@ def main():
     except:
         example_arr = []
     example_arr_extensionless = [os.path.splitext(file_name)[0] for file_name in example_arr]
-    example_arr_extensionless.insert(0, 'Random')
+    example_arr_extensionless = sorted(example_arr_extensionless)
+
+    example_arr_extensionless.insert(0, 'Random (Refresh Page)')
     sefa_selected_preset_option = st.sidebar.selectbox(
     'Select Example',
     example_arr_extensionless, key='selected_preset_option')
 
-    if sefa_selected_preset_option == 'Random':
-        if 'sefa_initial_sample' in st.session_state:
-            del st.session_state['sefa_initial_sample'] 
+
+    if sefa_selected_preset_option == 'Random (Refresh Page)':
+        if f'%s_sefa_initial_sample'%model_picked in st.session_state:
+            del st.session_state[f'%s_sefa_initial_sample'%model_picked] 
     else:
         try:
-            config_from_example = np.load(f'../config/resources/sefa-examples/{sefa_selected_preset_option}.npy')
-            new_z = config_from_example['z']
-            st.session_state['sefa_initial_sample'] = torch.from_numpy(new_z)
+            config_from_example = np.load(f'../config/resources/sefa-examples/{model_picked}/{sefa_selected_preset_option}.npy')
+            st.session_state[f'%s_sefa_initial_sample'%model_picked] = torch.from_numpy(config_from_example)
         except:
             config_from_example = None
         # with np.load(f'../config/resources/sefa-examples/{sefa_selected_preset_option}.npy') as data:
         #     print(data)
         # new_z = data['z']
-        # st.session_state['sefa_initial_sample'] = torch.from_numpy(new_z)
+        # st.session_state[f'%s_sefa_initial_sample'%model_picked] = torch.from_numpy(new_z)
 
     slider_1_position=st.sidebar.slider('Dimension 1', min_value=-5.0, max_value=5.0, value=0.0, step=0.01,  format=None, key='slider_1_position', help=None, args=None, kwargs=None, disabled=False)
     slider_2_position=st.sidebar.slider('Dimension 2', min_value=-5.0, max_value=5.0, value=0.0, step=0.01,  format=None, key='slider_2_position', help=None, args=None, kwargs=None, disabled=False)

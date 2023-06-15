@@ -1,0 +1,11 @@
+{
+    "impulse_time": 0.18,
+    "trail_lf": 850,
+    "trail_hf": 4000,
+    "forward_damping_mult": 0.0,
+    "backward_damping_mult": 1.0,
+    "damping_fade_expo": 4.0,
+    "filter_order": 1.0,
+    "locs": "Medium",
+    "locs_burst": false
+}

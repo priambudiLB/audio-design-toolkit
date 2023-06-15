@@ -158,17 +158,16 @@ def get_synthetic_sounds(initial_amplitude, impulse_time, filters, total_time=2,
                              backward_damping_mult=None, forward_damping_mult=None, damping_fade_expo=1, 
                              filter_order=None):
     
-    
     y_scratch = np.random.rand(int(impulse_time*sample_rate))
     
 
-    start_t = 0.0
+    start_t = 0.05*impulse_time
     end_t = 1.0*impulse_time
     y2 = initial_amplitude*y_scratch[int(start_t*sample_rate):int(end_t*sample_rate)]
     if not filter_order:
         filter_order = 1
-    y2 = 10*butter_bandpass_filter(y2, lowcut=filters[0], highcut=filters[1], fs=sample_rate, order=filter_order, btype='bandpass')
-    y2 = applyFBFadeFilter(forward_fadetime=forward_damping_mult*end_t,backward_fadetime=backward_damping_mult*end_t,signal=y2,fs=sample_rate, expo=damping_fade_expo)
+    y2 = 20*butter_bandpass_filter(y2, lowcut=filters[0], highcut=filters[1], fs=sample_rate, order=filter_order, btype='bandpass')
+    y2 = applyFBFadeFilter(forward_fadetime=forward_damping_mult*(end_t-start_t),backward_fadetime=backward_damping_mult*(end_t-start_t),signal=y2,fs=sample_rate, expo=damping_fade_expo)
     y2 = np.pad(y2, (int(start_t*sample_rate),len(y_scratch)-int(end_t*sample_rate)), mode='constant')
     
     
