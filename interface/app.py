@@ -2,6 +2,8 @@ from multipage import MultiPage
 from perceptual_guided_control import main as pg_control_main
 from query_gan import main as query_gan_main
 from sefa import main as sefa_main
+#from GaverAnalysisSynthesis import main as GaverAnalysisSynthesisMain
+#from SefaInterface import main as SefaInterfaceMain
 
 
 import streamlit as st
@@ -10,6 +12,9 @@ import streamlit as st
 
 app = MultiPage()
 app.add_app('our-algo', pg_control_main)
-app.add_app('query-gan', query_gan_main)
-app.add_app('sefa-algo', sefa_main)
+app.add_app('algo1', query_gan_main)
+app.add_app('algo2', sefa_main)
+#app.add_app('query-gan',GaverAnalysisSynthesisMain)
+#app.add_app('sefa-algo',SefaInterfaceMain)
 app.run()
+
