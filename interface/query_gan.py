@@ -19,7 +19,7 @@ import sys
 sys.path.insert(0, '../')
 import dnnlib
 from networks import stylegan_encoder
-from utils import util, training_utils, losses, masking, gaver_sounds, perceptual_guidance
+from utils import util, training_utils, losses, masking, gaver_sounds, perceptual_guidance, google_analytics
 import numpy as np
 import torch
 
@@ -137,6 +137,7 @@ def get_gaver_sounds(initial_amplitude, impulse_time, filters, total_time, locs=
                              backward_damping_mult=None, forward_damping_mult=None, damping_fade_expo=None, 
                              filter_order=None,
                              session_uuid=''):
+    get_gaver_sounds_start_time = time.time()
     model = st.session_state['model_picked']
 
     signal = gaver_sounds.get_synthetic_sounds(initial_amplitude=initial_amplitude, 
@@ -171,6 +172,7 @@ def get_gaver_sounds(initial_amplitude, impulse_time, filters, total_time, locs=
     io_buf.close()
 
     st.session_state['gaver_audio_loc'] = f'{config.query_gan_tmp_audio_loc_path}{session_uuid}_temp_signal_loc.wav'
+    print("--- Time taken to create synthetic ref = %s seconds ---" % (time.time() - get_gaver_sounds_start_time))
     sample(session_uuid)
     return audio_bytes, img_arr#, '/tmp/audio-design-toolkit/query_gan/{session_uuid}_temp_signal_loc.wav'
 
@@ -244,15 +246,17 @@ def encode_and_reconstruct(audio):
     reconstructed_audio = reconstructed_audio.detach().cpu().numpy()[0]
     reconstructed_audio_wav = util.pghi_istft(reconstructed_audio, hop_size=config.model_list[model]['hop_size'], stft_channels=config.stft_channels)
 
+    loudness_eq_start = time.time()
     loudness = meter.integrated_loudness(reconstructed_audio_wav)
     # loudness normalize audio to -12 dB LUFS
     reconstructed_audio_wav = pyln.normalize.loudness(reconstructed_audio_wav, loudness, -14.0)
-
+    print("--- Time taken to equalize loudness (without soft prior) = %s seconds ---" % (time.time() - loudness_eq_start))
 
     return encoded, reconstructed_audio_wav
 
 
 def sample(session_uuid=''):
+    sample_time_start = time.time()
     model = st.session_state['model_picked']
     audio_loc = st.session_state['gaver_audio_loc']
 
@@ -299,6 +303,7 @@ def sample(session_uuid=''):
     
     st.session_state['gaver_audio_bytes'] = audio_bytes
     st.session_state['gaver_img_arr'] = img_arr
+    print("--- Time taken to encode and reconstruct = %s seconds ---" % (time.time() - sample_time_start))
 
 def map_dropdown_name(input):
     return config.model_list[input]['name']
@@ -366,15 +371,16 @@ def encode_and_reconstruct_with_soft_prior(audio, prior_centriod_embedding):
     reconstructed_audio = reconstructed_audio.detach().cpu().numpy()[0]
     reconstructed_audio_wav = util.pghi_istft(reconstructed_audio, hop_size=config.model_list[model]['hop_size'], stft_channels=config.stft_channels)
 
+    loudness_eq_soft_prior_start = time.time()
     loudness = meter.integrated_loudness(reconstructed_audio_wav)
     # loudness normalize audio to -12 dB LUFS
     reconstructed_audio_wav = pyln.normalize.loudness(reconstructed_audio_wav, loudness, -14.0)
-
+    print("--- Time taken to equalize loudness (with soft prior) = %s seconds ---" % (time.time() - loudness_eq_soft_prior_start))
     return encoded, reconstructed_audio_wav
 
 
 def main():
-    
+    google_analytics.set_google_analytics()
     st.markdown("<h1 style='text-align: center;'>Exploring Environmental Sound Spaces - 1</h1>", unsafe_allow_html=True)
 
 
@@ -397,7 +403,6 @@ def main():
         example_arr = []
     example_arr_extensionless = [os.path.splitext(file_name)[0] for file_name in example_arr]
     example_arr_extensionless.insert(0, '-None-')
-    # example_arr_extensionless = example_arr_extensionless if model_picked == 'environmental_sounds' else []
     example_arr_extensionless = sorted(example_arr_extensionless)
     example_picked =  st.sidebar.selectbox('Select Example', example_arr_extensionless, key='example_picked')
     
@@ -409,17 +414,6 @@ def main():
 
     horizontal_line = '<div style="border: solid #404040 2px; margin-bottom:10%"></div>'
     st.sidebar.markdown(horizontal_line, unsafe_allow_html=True)
-
-    # rate_locs_0_per_sec = np.linspace(0.05, 4, 1)
-    # rate_locs_1_per_sec = np.linspace(0.05, 3.9, 3)
-    # rate_locs_2_per_sec = np.linspace(0.05, 3.9, 5)
-    # rate_locs_3_per_sec = np.linspace(0.05, 3.9, 8)
-    # rate_locs_4_per_sec = np.linspace(0.05, 3.9, 20)
-    # locs = [rate_locs_0_per_sec, rate_locs_1_per_sec, rate_locs_2_per_sec, rate_locs_3_per_sec, rate_locs_4_per_sec]
-    
-    # TODO: configure this
-    # locs_value = locs
-    # locs_value = [config_from_example['locs']] if config_from_example is not None else locs
 
     impact_type = 'hit'
     impulse_time_value = float(config_from_example['impulse_time'] if config_from_example is not None else 0.05)
@@ -475,11 +469,6 @@ def main():
         is_soft_prior_picked_disabled = False
     soft_prior_picked =  st.sidebar.selectbox('Soft Prior', soft_prior_list_extensionless, key='soft_prior_picked', disabled=is_soft_prior_picked_disabled)
 
-    # try:
-    #     test = np.load(f'../config/resources/prototype/{soft_prior_picked}.npy')
-    # except:
-    #     test = None
-    # print('npy', test.shape)
     col1, col2, col3 = st.columns((4,1,4))
 
     s, s_pghi = get_gaver_sounds(initial_amplitude=1.0, hittype=impact_type, total_time=config.model_list[model_picked]['total_time'],\

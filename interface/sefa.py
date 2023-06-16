@@ -26,7 +26,7 @@ import librosa
 import librosa.display
 import soundfile as sf
 
-from utils import util
+from utils import util, google_analytics
 from tifresi.utils import load_signal
 from tifresi.utils import preprocess_signal
 from tifresi.stft import GaussTF, GaussTruncTF
@@ -330,6 +330,7 @@ def map_dropdown_name(input):
     return config.model_list[input]['name']
 
 def main():
+    google_analytics.set_google_analytics()
     st.markdown("<h1 style='text-align: center;'>Exploring Environmental Sound Spaces - 2</h1>", unsafe_allow_html=True)
 
 
