@@ -134,7 +134,6 @@ def get_gaver_sounds(initial_amplitude, impulse_time, filters, total_time, locs=
                              backward_damping_mult=None, forward_damping_mult=None, damping_fade_expo=None, 
                              filter_order=None,
                              session_uuid=''):
-    get_gaver_sounds_start_time = time.time()
     model = st.session_state['model_picked']
 
     signal = gaver_sounds.get_synthetic_sounds(initial_amplitude=initial_amplitude, 
@@ -150,11 +149,11 @@ def get_gaver_sounds(initial_amplitude, impulse_time, filters, total_time, locs=
                         
     signal = signal/np.max(signal)
 
-    os.makedirs(config.query_gan_tmp_audio_loc_path, exist_ok=True)
-    sf.write(f'{config.query_gan_tmp_audio_loc_path}{session_uuid}_temp_signal_loc.wav', signal.astype(float), config.sample_rate)
-    audio_file = open(f'{config.query_gan_tmp_audio_loc_path}{session_uuid}_temp_signal_loc.wav', 'rb')
-    audio_bytes = audio_file.read()
-    audio_file.close()
+    # os.makedirs(config.query_gan_tmp_audio_loc_path, exist_ok=True)
+    # sf.write(f'{config.query_gan_tmp_audio_loc_path}{session_uuid}_temp_signal_loc.wav', signal.astype(float), config.sample_rate)
+    # audio_file = open(f'{config.query_gan_tmp_audio_loc_path}{session_uuid}_temp_signal_loc.wav', 'rb')
+    # audio_bytes = audio_file.read()
+    # audio_file.close()
     
     fig =plt.figure(figsize=(7, 5))
     a=librosa.display.specshow(get_spectrogram(signal)[0],x_axis='time', y_axis='linear',sr=config.sample_rate, hop_length=config.model_list[model]['hop_size'])
@@ -166,7 +165,7 @@ def get_gaver_sounds(initial_amplitude, impulse_time, filters, total_time, locs=
     io_buf.close()
 
     st.session_state['gaver_audio_loc'] = f'{config.query_gan_tmp_audio_loc_path}{session_uuid}_temp_signal_loc.wav'
-    return audio_bytes, img_arr
+    return img_arr, signal.astype(float)
 
 @st.cache_data
 def get_model(model):
@@ -202,10 +201,11 @@ def get_model(model):
 
 
 def encode_and_reconstruct(audio):
+    encode_and_reconstruct_start_time = time.time()
     model = st.session_state['model_picked']
     audio_pghi = preprocess_signal(audio)
     G, netE = get_model(model)
-    
+
     im_min = config.im_min
     im_max = config.im_max
     pghi_min = config.pghi_min
@@ -213,7 +213,7 @@ def encode_and_reconstruct(audio):
     
     audio_pghi = util.zeropad(audio_pghi, config.n_frames * config.model_list[model]['hop_size'] )
     audio_pghi = util.pghi_stft(audio_pghi, hop_size=config.model_list[model]['hop_size'], stft_channels=config.stft_channels)
-    
+
     if model == 'environmental_sounds':
         audio_pghi = np.clip(audio_pghi + -50*(audio_pghi<(-1*25)), -50, 0)
 
@@ -228,6 +228,7 @@ def encode_and_reconstruct(audio):
         encoded = netE(net_input)
     print("--- Time taken for [encoded = netE(net_input)] = %s seconds ---" % (time.time() - encoded_start))
 
+
     reconstructed_audio_start = time.time()
     reconstructed_audio = G.synthesis(torch.stack([encoded] * 14, dim=1))
     print("--- Time taken for [reconstructed_audio] = %s seconds ---" % (time.time() - reconstructed_audio_start))
@@ -237,21 +238,25 @@ def encode_and_reconstruct(audio):
     reconstructed_audio = reconstructed_audio.detach().cpu().numpy()[0]
     reconstructed_audio_wav = util.pghi_istft(reconstructed_audio, hop_size=config.model_list[model]['hop_size'], stft_channels=config.stft_channels)
 
+
+
     loudness_eq_start = time.time()
     loudness = meter.integrated_loudness(reconstructed_audio_wav)
     # loudness normalize audio to -12 dB LUFS
     reconstructed_audio_wav = pyln.normalize.loudness(reconstructed_audio_wav, loudness, -14.0)
     print("--- Time taken to equalize loudness (without soft prior) = %s seconds ---" % (time.time() - loudness_eq_start))
+    
+    print("--- Time taken to encode and reconstruct = %s seconds ---" % (time.time() - encode_and_reconstruct_start_time))
 
     return encoded, reconstructed_audio_wav
 
 
-def sample(session_uuid=''):
-    sample_time_start = time.time()
+def sample(audio, session_uuid=''):
+    sample_start_time = time.time()
     model = st.session_state['model_picked']
     audio_loc = st.session_state['gaver_audio_loc']
 
-    audio, sr = librosa.load(audio_loc, sr=config.sample_rate)
+    # audio, sr = librosa.load(audio_loc, sr=config.sample_rate)
 
     soft_prior_picked = st.session_state['soft_prior_picked']
     try:
@@ -264,11 +269,14 @@ def sample(session_uuid=''):
     else:
         encoded, reconstructed_audio_wav = encode_and_reconstruct(audio)
 
-    os.makedirs('/tmp/audio-design-toolkit/query_gan/', exist_ok=True)
-    sf.write(f'/tmp/audio-design-toolkit/query_gan/{session_uuid}_reconstructed_audio_wav_recon.wav', reconstructed_audio_wav.astype(float), config.sample_rate)
-    audio_file = open(f'/tmp/audio-design-toolkit/query_gan/{session_uuid}_reconstructed_audio_wav_recon.wav', 'rb')
-    audio_bytes = audio_file.read()
-    audio_file.close()
+
+    audio_bytes_time_start = time.time()
+    # os.makedirs('/tmp/audio-design-toolkit/query_gan/', exist_ok=True)
+    # sf.write(f'/tmp/audio-design-toolkit/query_gan/{session_uuid}_reconstructed_audio_wav_recon.wav', reconstructed_audio_wav.astype(float), config.sample_rate)
+    # audio_file = open(f'/tmp/audio-design-toolkit/query_gan/{session_uuid}_reconstructed_audio_wav_recon.wav', 'rb')
+    # audio_bytes = audio_file.read()
+    # audio_file.close()
+    # print("--- Time taken to read audio_bytes = %s seconds ---" % (time.time() - audio_bytes_time_start))
 
     #Uncomment for final study
     # fig, ax = plt.subplots(nrows=2, figsize=(7,8))
@@ -276,12 +284,12 @@ def sample(session_uuid=''):
     # b=librosa.display.waveshow(reconstructed_audio_wav, sr=config.sample_rate, ax=ax[0])
     # ax[0].set_xlim(0, config.model_list[model]['total_time'])
     # ax[0].set_xlabel('')
+    img_arr_time_start = time.time()
     fig, ax = plt.subplots(nrows=1, figsize=(7,5))
     a=librosa.display.specshow(get_spectrogram(reconstructed_audio_wav)[0], x_axis='time', y_axis='linear',sr=config.sample_rate, hop_length=config.model_list[model]['hop_size'], ax=ax)
-    b=librosa.display.waveshow(reconstructed_audio_wav, sr=config.sample_rate, ax=ax)
+    # b=librosa.display.waveshow(reconstructed_audio_wav, sr=config.sample_rate, ax=ax)
     ax.set_xlim(0, config.model_list[model]['total_time'])
     ax.set_xlabel('')
-
 
 
     io_buf = io.BytesIO()
@@ -290,9 +298,8 @@ def sample(session_uuid=''):
     img_arr = np.reshape(np.frombuffer(io_buf.getvalue(), dtype=np.uint8),
                         newshape=(int(fig.bbox.bounds[3]), int(fig.bbox.bounds[2]), -1))
     io_buf.close()
-    
-    print("--- Time taken to encode and reconstruct = %s seconds ---" % (time.time() - sample_time_start))
-    return audio_bytes, img_arr
+    print("--- Time taken to read img_arr = %s seconds ---" % (time.time() - img_arr_time_start))
+    return img_arr, reconstructed_audio_wav
 
 def map_dropdown_name(input):
     return config.model_list[input]['name']
@@ -466,7 +473,8 @@ def main():
 
     col1, col2, col3 = st.columns((4,1,4))
 
-    s, s_pghi = get_gaver_sounds(initial_amplitude=1.0, hittype=impact_type, total_time=config.model_list[model_picked]['total_time'],\
+    gaver_sound_time = time.time()
+    s_pghi, s_audio = get_gaver_sounds(initial_amplitude=1.0, hittype=impact_type, total_time=config.model_list[model_picked]['total_time'],\
                                     impulse_time=impulse_time, sample_rate=config.sample_rate,\
                                     filters=[lf, hf], locs=locs_value,\
                                     filter_order=filter_order, \
@@ -474,15 +482,18 @@ def main():
                                     backward_damping_mult=backward_damping_mult, \
                                     damping_fade_expo=damping_fade_expo,\
                                     session_uuid=session_uuid)
-    
-    s_recon, s_recon_pghi = sample(session_uuid=session_uuid) 
+    print("--- Time taken to gaver_sounds() = %s seconds ---" % (time.time() - gaver_sound_time))
+
+    sample_time = time.time()
+    s_recon_pghi, s_recon_wav = sample(s_audio, session_uuid=session_uuid) 
+    print("--- Time taken to for sample() = %s seconds ---" % (time.time() - sample_time))
 
 
     with col1:
         colname = '<div style="padding-left: 30%;"><h3><b><i>Synthetic Reference</i></b></h3></div>'
         st.markdown(colname, unsafe_allow_html=True)
         st.image(s_pghi)
-        st.audio(s, format="audio/wav", start_time=0)
+        st.audio(s_audio, format="audio/wav", start_time=0, sample_rate=config.sample_rate)
     with col2:
         colname = '&nbsp;'
         st.markdown(colname, unsafe_allow_html=True)
@@ -490,7 +501,7 @@ def main():
         colname = '<div style="padding-left: 30%;"><h3><b><i>Reconstructed Audio</i></b></h3></div>'
         st.markdown(colname, unsafe_allow_html=True)
         st.image(s_recon_pghi)
-        st.audio(s_recon, format="audio/wav", start_time=0)#, sample_rate=16000)
+        st.audio(s_recon_wav, format="audio/wav", start_time=0, sample_rate=config.sample_rate)
     
 
 
