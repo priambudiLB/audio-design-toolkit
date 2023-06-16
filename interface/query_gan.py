@@ -387,7 +387,8 @@ def encode_and_reconstruct_with_soft_prior(audio, prior_centriod_embedding):
 
 
 def main():
-    google_analytics.set_google_analytics()
+    if config.allow_analytics:
+        google_analytics.set_google_analytics()
     st.markdown("<h1 style='text-align: center;'>Exploring Environmental Sound Spaces - 1</h1>", unsafe_allow_html=True)
 
 

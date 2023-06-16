@@ -142,7 +142,8 @@ def map_dropdown_name(input):
     return config.model_list[input]['name']
 
 def main():
-    google_analytics.set_google_analytics()
+    if config.allow_analytics:
+        google_analytics.set_google_analytics()
     st.markdown("<h2 style='text-align: center;'>Audio Texture Generation <br/>Guided by Semantic Prototypes</h2>", unsafe_allow_html=True)
 
     if 'session_uuid' not in st.session_state:
