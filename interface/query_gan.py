@@ -232,14 +232,18 @@ def encode_and_reconstruct(audio):
     mask = torch.ones_like(audio_pghi)[:, :1, :, :]
     net_input = torch.cat([audio_pghi, mask], dim=1).cuda()
     
+    encoded_start = time.time()
     with torch.no_grad():
         encoded = netE(net_input)
+    print("--- Time taken for [encoded = netE(net_input)] = %s seconds ---" % (time.time() - encoded_start))
 
     # print(encoded.shape)
     # os.makedirs('../config/resources/sefa-examples', exist_ok=True)
     # np.save('../config/resources/sefa-examples/w.npy', encoded.cpu().numpy())
 
+    reconstructed_audio_start = time.time()
     reconstructed_audio = G.synthesis(torch.stack([encoded] * 14, dim=1))
+    print("--- Time taken for [reconstructed_audio] = %s seconds ---" % (time.time() - reconstructed_audio_start))
     filler = torch.full((1, 1, 1, reconstructed_audio[0].shape[1]), torch.min(reconstructed_audio)).cuda()
     reconstructed_audio = torch.cat([reconstructed_audio, filler], dim=2)
     reconstructed_audio = util.renormalize(reconstructed_audio, (torch.min(reconstructed_audio), torch.max(reconstructed_audio)), (pghi_min, pghi_max))
@@ -352,9 +356,10 @@ def encode_and_reconstruct_with_soft_prior(audio, prior_centriod_embedding):
     mask = torch.ones_like(audio_pghi)[:, :1, :, :]
     net_input = torch.cat([audio_pghi, mask], dim=1).cuda()
     
+    encoded_start = time.time()
     with torch.no_grad():
         encoded = netE(net_input)
-    
+    print("--- Time taken for [encoded = netE(net_input)] = %s seconds ---" % (time.time() - encoded_start))
 
     if prior_centriod_embedding is not None:
         prior_centriod_embedding = torch.from_numpy(prior_centriod_embedding).cuda().float()
@@ -364,7 +369,9 @@ def encode_and_reconstruct_with_soft_prior(audio, prior_centriod_embedding):
     # os.makedirs('../config/resources/sefa-examples', exist_ok=True)
     # np.save('../config/resources/sefa-examples/w.npy', encoded.cpu().numpy())
 
+    reconstructed_audio_start = time.time()
     reconstructed_audio = G.synthesis(torch.stack([encoded] * 14, dim=1))
+    print("--- Time taken for [reconstructed_audio] = %s seconds ---" % (time.time() - reconstructed_audio_start))
     filler = torch.full((1, 1, 1, reconstructed_audio[0].shape[1]), torch.min(reconstructed_audio)).cuda()
     reconstructed_audio = torch.cat([reconstructed_audio, filler], dim=2)
     reconstructed_audio = util.renormalize(reconstructed_audio, (torch.min(reconstructed_audio), torch.max(reconstructed_audio)), (pghi_min, pghi_max))
