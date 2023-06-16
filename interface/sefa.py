@@ -216,7 +216,7 @@ def sample(pos, session_uuid=''):
     
     start_time = time.time()
 
-    if 'Random' not in st.session_state['selected_preset_option']: ## Random bug fix. When example is selected, we receive the W vector. 
+    if 'Random' not in st.session_state['sefa_selected_preset_option']: ## Random bug fix. When example is selected, we receive the W vector. 
         code = torch.stack([z] * 14, dim=1)
     else:
         code = G.mapping(z, None)
@@ -342,6 +342,19 @@ def on_example_change():
     st.session_state.slider_9_position = 0.0
     st.session_state.slider_10_position = 0.0
 
+    sefa_selected_preset_option = st.session_state['sefa_selected_preset_option']
+    model_picked = st.session_state['model_picked']
+    if sefa_selected_preset_option == 'Random (Refresh Page)':
+        if f'%s_sefa_initial_sample'%model_picked in st.session_state:
+            del st.session_state[f'%s_sefa_initial_sample'%model_picked] 
+    else:
+        try:
+            config_from_example = np.load(f'../config/resources/sefa-examples/{model_picked}/{sefa_selected_preset_option}.npy')
+            st.session_state[f'%s_sefa_initial_sample'%model_picked] = torch.from_numpy(config_from_example)
+        except:
+            config_from_example = None
+        
+
 def main():
     if config.allow_analytics:
         google_analytics.set_google_analytics()
@@ -368,22 +381,8 @@ def main():
     example_arr_extensionless.insert(0, 'Random (Refresh Page)')
     sefa_selected_preset_option = st.sidebar.selectbox(
     'Select Example',
-    example_arr_extensionless, key='selected_preset_option', on_change=on_example_change)
+    example_arr_extensionless, key='sefa_selected_preset_option', on_change=on_example_change)
 
-
-    if sefa_selected_preset_option == 'Random (Refresh Page)':
-        if f'%s_sefa_initial_sample'%model_picked in st.session_state:
-            del st.session_state[f'%s_sefa_initial_sample'%model_picked] 
-    else:
-        try:
-            config_from_example = np.load(f'../config/resources/sefa-examples/{model_picked}/{sefa_selected_preset_option}.npy')
-            st.session_state[f'%s_sefa_initial_sample'%model_picked] = torch.from_numpy(config_from_example)
-        except:
-            config_from_example = None
-        # with np.load(f'../config/resources/sefa-examples/{sefa_selected_preset_option}.npy') as data:
-        #     print(data)
-        # new_z = data['z']
-        # st.session_state[f'%s_sefa_initial_sample'%model_picked] = torch.from_numpy(new_z)
 
     slider_1_position=st.sidebar.slider('Dimension 1', min_value=-5.0, max_value=5.0, value=0.0, step=0.01,  format=None, key='slider_1_position', help=None, args=None, kwargs=None, disabled=False)
     slider_2_position=st.sidebar.slider('Dimension 2', min_value=-5.0, max_value=5.0, value=0.0, step=0.01,  format=None, key='slider_2_position', help=None, args=None, kwargs=None, disabled=False)
