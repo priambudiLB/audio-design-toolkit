@@ -156,8 +156,8 @@ def get_hitscratch_sefa_model(model):
         network = pickle.load(f)
         G = network['G'].eval().cuda()
         # G = legacy.load_network_pkl(f)['G']
-        st.session_state['hitscratch_sefa_G'] = G
-    return st.session_state['hitscratch_sefa_G']
+        #st.session_state['hitscratch_sefa_G'] = G
+    return G#st.session_state['hitscratch_sefa_G']
 
 
 @st.cache_data
@@ -178,8 +178,8 @@ def get_envsounds_sefa_model(model):
         network = pickle.load(f)
         G = network['G'].eval().cuda()
         # G = legacy.load_network_pkl(f)['G']
-        st.session_state['envsounds_sefa_G'] = G
-    return st.session_state['envsounds_sefa_G']
+        #st.session_state['envsounds_sefa_G'] = G
+    return G#st.session_state['envsounds_sefa_G']
 
 def sample(pos, session_uuid=''):
     model = st.session_state['model_picked']
@@ -284,6 +284,7 @@ def sample(pos, session_uuid=''):
 
     audio_file = open(f'{config.sefa_tmp_audio_loc_path}{session_uuid}_sefa_interface_temp_audio_loc.wav', 'rb')
     audio_bytes = audio_file.read()
+    audio_file.close()
 
     # print(audio_bytes)
     # components.html('test<script>\

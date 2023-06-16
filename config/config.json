@@ -42,5 +42,5 @@
     "im_max": 0.93,
     "pghi_min": -50,
     "pghi_max": 0,
-    "allow_analytics": true
+    "allow_analytics": false
 }

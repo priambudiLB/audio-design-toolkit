@@ -47,10 +47,7 @@ warnings.filterwarnings("ignore", category=DeprecationWarning)
 import uuid
 from argparse import Namespace
 
-# st.title('Analysis-Synthesis')
 somehtml = '<h1 style="text-align:center">Analysis-Synthesis In The Latent Space</h1>'
-# st.markdown(somehtml, unsafe_allow_html=True)
-# st.title("Analysis-Synthesis In The Latent Space")
 
 config = util.get_config('../config/config.json')
 config = Namespace(**dict(**config))
@@ -153,14 +150,11 @@ def get_gaver_sounds(initial_amplitude, impulse_time, filters, total_time, locs=
                         
     signal = signal/np.max(signal)
 
-    # loudness = meter.integrated_loudness(signal)
-    # # loudness normalize audio to -12 dB LUFS
-    # signal = pyln.normalize.loudness(signal, loudness, -14.0)
-
     os.makedirs(config.query_gan_tmp_audio_loc_path, exist_ok=True)
     sf.write(f'{config.query_gan_tmp_audio_loc_path}{session_uuid}_temp_signal_loc.wav', signal.astype(float), config.sample_rate)
     audio_file = open(f'{config.query_gan_tmp_audio_loc_path}{session_uuid}_temp_signal_loc.wav', 'rb')
     audio_bytes = audio_file.read()
+    audio_file.close()
     
     fig =plt.figure(figsize=(7, 5))
     a=librosa.display.specshow(get_spectrogram(signal)[0],x_axis='time', y_axis='linear',sr=config.sample_rate, hop_length=config.model_list[model]['hop_size'])
@@ -172,9 +166,7 @@ def get_gaver_sounds(initial_amplitude, impulse_time, filters, total_time, locs=
     io_buf.close()
 
     st.session_state['gaver_audio_loc'] = f'{config.query_gan_tmp_audio_loc_path}{session_uuid}_temp_signal_loc.wav'
-    print("--- Time taken to create synthetic ref = %s seconds ---" % (time.time() - get_gaver_sounds_start_time))
-    sample(session_uuid)
-    return audio_bytes, img_arr#, '/tmp/audio-design-toolkit/query_gan/{session_uuid}_temp_signal_loc.wav'
+    return audio_bytes, img_arr
 
 @st.cache_data
 def get_model(model):
@@ -212,8 +204,7 @@ def get_model(model):
 def encode_and_reconstruct(audio):
     model = st.session_state['model_picked']
     audio_pghi = preprocess_signal(audio)
-    G = st.session_state['gaver_G']
-    netE = st.session_state['gaver_netE']
+    G, netE = get_model(model)
     
     im_min = config.im_min
     im_max = config.im_max
@@ -228,7 +219,7 @@ def encode_and_reconstruct(audio):
 
     audio_pghi = util.renormalize(audio_pghi, (np.min(audio_pghi), np.max(audio_pghi)), (im_min, im_max))
 
-    audio_pghi = torch.from_numpy(audio_pghi).float().cuda().unsqueeze(dim=0)
+    audio_pghi = torch.from_numpy(audio_pghi.astype(np.float32)).cuda().unsqueeze(dim=0)
     mask = torch.ones_like(audio_pghi)[:, :1, :, :]
     net_input = torch.cat([audio_pghi, mask], dim=1).cuda()
     
@@ -236,10 +227,6 @@ def encode_and_reconstruct(audio):
     with torch.no_grad():
         encoded = netE(net_input)
     print("--- Time taken for [encoded = netE(net_input)] = %s seconds ---" % (time.time() - encoded_start))
-
-    # print(encoded.shape)
-    # os.makedirs('../config/resources/sefa-examples', exist_ok=True)
-    # np.save('../config/resources/sefa-examples/w.npy', encoded.cpu().numpy())
 
     reconstructed_audio_start = time.time()
     reconstructed_audio = G.synthesis(torch.stack([encoded] * 14, dim=1))
@@ -265,8 +252,6 @@ def sample(session_uuid=''):
     audio_loc = st.session_state['gaver_audio_loc']
 
     audio, sr = librosa.load(audio_loc, sr=config.sample_rate)
-    G = st.session_state['gaver_G']
-    netE = st.session_state['gaver_netE']
 
     soft_prior_picked = st.session_state['soft_prior_picked']
     try:
@@ -283,7 +268,8 @@ def sample(session_uuid=''):
     sf.write(f'/tmp/audio-design-toolkit/query_gan/{session_uuid}_reconstructed_audio_wav_recon.wav', reconstructed_audio_wav.astype(float), config.sample_rate)
     audio_file = open(f'/tmp/audio-design-toolkit/query_gan/{session_uuid}_reconstructed_audio_wav_recon.wav', 'rb')
     audio_bytes = audio_file.read()
-    
+    audio_file.close()
+
     #Uncomment for final study
     # fig, ax = plt.subplots(nrows=2, figsize=(7,8))
     # a=librosa.display.specshow(get_spectrogram(reconstructed_audio_wav)[0], x_axis='time', y_axis='linear',sr=config.sample_rate, hop_length=config.model_list[model]['hop_size'], ax=ax[1])
@@ -305,9 +291,8 @@ def sample(session_uuid=''):
                         newshape=(int(fig.bbox.bounds[3]), int(fig.bbox.bounds[2]), -1))
     io_buf.close()
     
-    st.session_state['gaver_audio_bytes'] = audio_bytes
-    st.session_state['gaver_img_arr'] = img_arr
     print("--- Time taken to encode and reconstruct = %s seconds ---" % (time.time() - sample_time_start))
+    return audio_bytes, img_arr
 
 def map_dropdown_name(input):
     return config.model_list[input]['name']
@@ -339,8 +324,7 @@ def get_locs(rate, burst=False, total_time=2.0):
 def encode_and_reconstruct_with_soft_prior(audio, prior_centriod_embedding):
     model = st.session_state['model_picked']
     audio_pghi = preprocess_signal(audio)
-    G = st.session_state['gaver_G']
-    netE = st.session_state['gaver_netE']
+    G, netE = get_model(model)
     
     im_min = config.im_min
     im_max = config.im_max
@@ -352,7 +336,8 @@ def encode_and_reconstruct_with_soft_prior(audio, prior_centriod_embedding):
     audio_pghi = np.clip(audio_pghi + -50*(audio_pghi<(-1*25)), -50, 0)
     audio_pghi = util.renormalize(audio_pghi, (np.min(audio_pghi), np.max(audio_pghi)), (im_min, im_max))
 
-    audio_pghi = torch.from_numpy(audio_pghi).float().cuda().unsqueeze(dim=0)
+    #audio_pghi = torch.from_numpy(audio_pghi).float().cuda().unsqueeze(dim=0)
+    audio_pghi = torch.from_numpy(audio_pghi.astype(np.float32)).cuda().unsqueeze(dim=0)
     mask = torch.ones_like(audio_pghi)[:, :1, :, :]
     net_input = torch.cat([audio_pghi, mask], dim=1).cuda()
     
@@ -364,10 +349,6 @@ def encode_and_reconstruct_with_soft_prior(audio, prior_centriod_embedding):
     if prior_centriod_embedding is not None:
         prior_centriod_embedding = torch.from_numpy(prior_centriod_embedding).cuda().float()
         encoded = encoded + 0.7*(prior_centriod_embedding - encoded) #Soft prior changed line
-
-    # print(encoded.shape)
-    # os.makedirs('../config/resources/sefa-examples', exist_ok=True)
-    # np.save('../config/resources/sefa-examples/w.npy', encoded.cpu().numpy())
 
     reconstructed_audio_start = time.time()
     reconstructed_audio = G.synthesis(torch.stack([encoded] * 14, dim=1))
@@ -402,8 +383,6 @@ def main():
     model_names = tuple(model_names)
     model_picked =  st.sidebar.selectbox('Select Model', model_names, format_func=map_dropdown_name, key='model_picked')
     G, netE = get_model(model_picked)
-    st.session_state['gaver_G'] = G
-    st.session_state['gaver_netE'] = netE
 
     try:
         example_arr = os.listdir(f'../config/resources/examples/{model_picked}')
@@ -488,12 +467,7 @@ def main():
                                     damping_fade_expo=damping_fade_expo,\
                                     session_uuid=session_uuid)
     
-    if 'gaver_audio_bytes' not in st.session_state:
-        st.session_state['gaver_audio_bytes'] = byte_array = bytes([])
-        st.session_state['gaver_img_arr'] = np.zeros((500,700,4))
-    
-    s_recon = st.session_state['gaver_audio_bytes']
-    s_recon_pghi = st.session_state['gaver_img_arr']
+    s_recon, s_recon_pghi = sample(session_uuid=session_uuid) 
 
 
     with col1:
@@ -509,11 +483,7 @@ def main():
         st.markdown(colname, unsafe_allow_html=True)
         st.image(s_recon_pghi)
         st.audio(s_recon, format="audio/wav", start_time=0)#, sample_rate=16000)
-    # with col3:
-    #     colname = '<div style="padding-left: 30%;"><h3><b><i>Reconstructed Audio</i></b></h3></div>'
-    #     st.markdown(colname, unsafe_allow_html=True)
-    #     st.image(s_recon_pghi)
-    #     st.audio(s_recon, format="audio/wav", start_time=0)#, sample_rate=16000)
+    
 
 
 if __name__ == '__main__':
