@@ -385,6 +385,13 @@ def encode_and_reconstruct_with_soft_prior(audio, prior_centriod_embedding):
     print("--- Time taken to equalize loudness (with soft prior) = %s seconds ---" % (time.time() - loudness_eq_soft_prior_start))
     return encoded, reconstructed_audio_wav
 
+def on_select_example_change():
+    try:
+        config_from_example = util.get_config(f'../config/resources/examples/{st.session_state.model_picked}/{st.session_state.example_picked}.json')
+    except:
+        config_from_example = None
+    add_irregularity_value = config_from_example['locs_burst'] if config_from_example is not None else False
+    st.session_state.add_irregularity = add_irregularity_value
 
 def main():
     if config.allow_analytics:
@@ -412,7 +419,7 @@ def main():
     example_arr_extensionless = [os.path.splitext(file_name)[0] for file_name in example_arr]
     example_arr_extensionless.insert(0, '-None-')
     example_arr_extensionless = sorted(example_arr_extensionless)
-    example_picked =  st.sidebar.selectbox('Select Example', example_arr_extensionless, key='example_picked')
+    example_picked =  st.sidebar.selectbox('Select Example', example_arr_extensionless, on_change=on_select_example_change, key='example_picked')
     
     try:
         config_from_example = util.get_config(f'../config/resources/examples/{model_picked}/{example_picked}.json')
@@ -433,8 +440,9 @@ def main():
         impulse_rate_config.append(dic['label'])
     rate =  st.sidebar.selectbox('Number of Impulses (Rate)', impulse_rate_config, index=impulse_dict[rate_value], key='rate_position',)
 
-    add_irregularity_value = config_from_example['locs_burst'] if config_from_example is not None else False
-    add_irregularity = st.sidebar.checkbox('Add Irregularity to Rate', value=add_irregularity_value)
+    if 'add_irregularity' not in st.session_state:
+        st.session_state['add_irregularity'] = config_from_example['locs_burst'] if config_from_example is not None else False
+    add_irregularity = st.sidebar.checkbox('Add Irregularity to Rate', key='add_irregularity')
 
     locs_value = get_locs(rate, add_irregularity, config.model_list[model_picked]['total_time'])
 
