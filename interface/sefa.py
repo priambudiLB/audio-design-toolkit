@@ -329,6 +329,18 @@ def draw_audio():
 def map_dropdown_name(input):
     return config.model_list[input]['name']
 
+def on_example_change():
+    st.session_state.slider_1_position = 0.0
+    st.session_state.slider_2_position = 0.0
+    st.session_state.slider_3_position = 0.0
+    st.session_state.slider_4_position = 0.0
+    st.session_state.slider_5_position = 0.0
+    st.session_state.slider_6_position = 0.0
+    st.session_state.slider_7_position = 0.0
+    st.session_state.slider_8_position = 0.0
+    st.session_state.slider_9_position = 0.0
+    st.session_state.slider_10_position = 0.0
+
 def main():
     if config.allow_analytics:
         google_analytics.set_google_analytics()
@@ -355,7 +367,7 @@ def main():
     example_arr_extensionless.insert(0, 'Random (Refresh Page)')
     sefa_selected_preset_option = st.sidebar.selectbox(
     'Select Example',
-    example_arr_extensionless, key='selected_preset_option')
+    example_arr_extensionless, key='selected_preset_option', on_change=on_example_change)
 
 
     if sefa_selected_preset_option == 'Random (Refresh Page)':
