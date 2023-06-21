@@ -469,7 +469,7 @@ def main():
         is_soft_prior_picked_disabled = True
     else:
         is_soft_prior_picked_disabled = False
-    soft_prior_picked =  st.sidebar.selectbox('Soft Prior', soft_prior_list_extensionless, key='soft_prior_picked', disabled=is_soft_prior_picked_disabled)
+    soft_prior_picked =  st.sidebar.selectbox('Constraint', soft_prior_list_extensionless, key='soft_prior_picked', disabled=is_soft_prior_picked_disabled)
 
     col1, col2, col3 = st.columns((4,1,4))
 
