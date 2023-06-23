@@ -18,11 +18,10 @@ const streamlitSetComponentValue = debounce(Streamlit.setComponentValue, 1000)
  */
 const MyComponent = () => {
   // let id = "knob1"
-  // let lowVal = 0
+  // let lowVal = 1
   // let highVal = 100
-  // let value = 30
+  // let value = 8
   // let size = "medium"
-  // let sensitivity = 1
   // let type = "Oscar"
   // let label = true
   // let name = "Default"
@@ -33,7 +32,6 @@ const MyComponent = () => {
   let highVal = renderData.args["highVal"]
   let value = renderData.args["value"]
   let size = renderData.args["size"]
-  let sensitivity = renderData.args["sensitivity"]
   let type = renderData.args["type"]
   let label = renderData.args["label"]
   let name = renderData.args["name"]
@@ -43,9 +41,8 @@ const MyComponent = () => {
     initY: 0,
     currentKnob: {}
   })
-  let knobY = 'translateY(-550px)';
+
   let currentValue;
-  console.log(renderData.args)
   if (value > highVal) {
     currentValue = highVal;
   } else if (value < lowVal) {
@@ -53,7 +50,6 @@ const MyComponent = () => {
   } else {
     currentValue = value;
   }
-  // console.log(currentValue)
   const scaler = 100 / (highVal - lowVal);
 
   if (size === "xlarge") {
@@ -68,6 +64,11 @@ const MyComponent = () => {
     size = 30;
   }
 
+  let initialSum =
+    Math.floor(((value - lowVal) * scaler) / 2) * size;
+
+  let initialKnobY = `translateY(-${initialSum}px)`;
+
   const imgFile = `${type}/${type}_${size}.png`;
 
   const [state, setState] = useState({
@@ -75,13 +76,12 @@ const MyComponent = () => {
     lowVal,
     highVal,
     currentValue,
-    sensitivity,
     scaler,
     type,
     label,
     size,
     imgFile,
-    knobY,
+    knobY: initialKnobY,
     name
   })
 
@@ -123,9 +123,11 @@ const MyComponent = () => {
       } else {
         //calculate new knob value
         oldState.currentValue =
-          knobInUse.value +
-          ((knobInUse.initY - e.pageY) * knobInUse.currentKnob.sensitivity) /
-          knobInUse.currentKnob.scaler
+          Math.round((oldState.currentValue =
+            knobInUse.value +
+            ((knobInUse.initY - e.pageY) * 1.7) /
+            knobInUse.currentKnob.scaler + Number.EPSILON) * 100) / 100
+
         //use max/min variables for easier reading
         let max = knobInUse.currentKnob.highVal,
           min = knobInUse.currentKnob.lowVal;
@@ -157,7 +159,6 @@ const MyComponent = () => {
       //access to the image goes: container div > image wrapper div > image tag
       oldState.knobY = newY
       setState(oldState)
-      console.log(oldState.currentValue)
       streamlitSetComponentValue(oldState.currentValue)
     }
   }, [state, knobInUse])
@@ -178,7 +179,7 @@ const MyComponent = () => {
   return (
     <>
       <div id={state.id} style={{ width: state.size * 2.5, display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 16 }}>
-        <div style={{ textAlign: 'center', width: '100%', margin: '0px auto', fontSize: '18px', fontWeight: 'bold', fontFamily: theme.font, color: theme.textColor }}>{state.name}</div>
+        <div style={{ textAlign: 'center', width: '100%', margin: '0px auto', marginBottom: 24, fontSize: '18px', fontWeight: 'bold', fontFamily: theme.font, color: theme.textColor }}>{state.name}</div>
         <div style={{ overflow: 'hidden', height: '50px', userSelect: 'none' }}>
           <img
             alt={state.id}

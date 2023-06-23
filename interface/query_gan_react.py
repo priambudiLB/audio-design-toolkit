@@ -51,10 +51,10 @@ meter = pyln.Meter(16000)
 parent_dir = os.path.dirname(os.path.abspath(__file__))
 build_dir = os.path.join(parent_dir, "frontend/build")
 
-def my_component(id_component, lowVal, highVal, value, size, sensitivity, knob_type, label, name, key=None):
+def my_component(id_component, lowVal, highVal, value, size, knob_type, label, name, key=None):
     _component_func = components.declare_component("my_component", path=build_dir)
     component_value = _component_func(id=id_component,
-    lowVal=lowVal, highVal=highVal, value=value, size=size, sensitivity=sensitivity, type=knob_type,
+    lowVal=lowVal, highVal=highVal, value=value, size=size, type=knob_type,
     label=label, name=name, key=key, default=value)
     return component_value
 
@@ -440,7 +440,7 @@ def main():
     with st.sidebar:
         col1, col2, col3 = st.columns((3,6,3))
         with col2:
-            impulse_time = my_component(id_component="impulse_width_position", lowVal=0, highVal=config.model_list[model_picked]['total_time'], value=impulse_time_value, size="medium", sensitivity=1, knob_type="Oscar", label=True, name="Impulse Width")
+            impulse_time = my_component(id_component="impulse_width_position", lowVal=0, highVal=config.model_list[model_picked]['total_time'], value=impulse_time_value, size="medium", knob_type="Oscar", label=True, name="Impulse Width")
     print(impulse_time, impulse_time_value)
 
     rate_value = config_from_example['locs'] if config_from_example is not None else 'Very Low'
@@ -480,18 +480,18 @@ def main():
     with st.sidebar:
         col1, col2 = st.columns((6,6))
         with col1:
-            filter_order = my_component(id_component="filter_order_position", lowVal=0, highVal=5, value=filter_order_value, size="medium", sensitivity=20, knob_type="Oscar", label=True, name="Filter Order")
+            filter_order = my_component(id_component="filter_order_position", lowVal=0, highVal=5, value=filter_order_value, size="medium", knob_type="Oscar", label=True, name="Filter Order")
         with col2:
-            forward_damping_mult = my_component(id_component="fdamping_mult_position", lowVal=0, highVal=1, value=forward_damping_mult_value, size="medium", sensitivity=10, knob_type="Oscar", label=True, name="Fade In")
+            forward_damping_mult = my_component(id_component="fdamping_mult_position", lowVal=0, highVal=1, value=forward_damping_mult_value, size="medium", knob_type="Oscar", label=True, name="Fade In")
     print(filter_order, filter_order_value)
     print(forward_damping_mult, forward_damping_mult_value)
 
     with st.sidebar:
         col1, col2 = st.columns((6,6))
         with col1:
-            backward_damping_mult = my_component(id_component="bdamping_mult_position", lowVal=0, highVal=1, value=backward_damping_mult_value, size="medium", sensitivity=10, knob_type="Oscar", label=True, name="Fade Out")
+            backward_damping_mult = my_component(id_component="bdamping_mult_position", lowVal=0, highVal=1, value=backward_damping_mult_value, size="medium", knob_type="Oscar", label=True, name="Fade Out")
         with col2:
-            damping_fade_expo = my_component(id_component="damping_fade_expo_position", lowVal=0, highVal=5, value=damping_fade_expo_value, size="medium", sensitivity=20, knob_type="Oscar", label=True, name="Fade Exponent")
+            damping_fade_expo = my_component(id_component="damping_fade_expo_position", lowVal=0, highVal=5, value=damping_fade_expo_value, size="medium", knob_type="Oscar", label=True, name="Fade Exponent")
     print(backward_damping_mult, backward_damping_mult_value)
     print(damping_fade_expo, damping_fade_expo_value)
     st.sidebar.markdown(horizontal_line, unsafe_allow_html=True)
