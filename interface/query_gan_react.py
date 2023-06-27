@@ -1,5 +1,6 @@
 import streamlit as st
 import streamlit.components.v1 as components
+import streamlit_vertical_slider  as svs
 import pandas as pd
 import numpy as np
 import io 
@@ -482,18 +483,44 @@ def main():
         with col1:
             filter_order = my_component(id_component="filter_order_position", lowVal=0, highVal=5, value=filter_order_value, size="medium", knob_type="Oscar", label=True, name="Filter Order")
         with col2:
-            forward_damping_mult = my_component(id_component="fdamping_mult_position", lowVal=0, highVal=1, value=forward_damping_mult_value, size="medium", knob_type="Oscar", label=True, name="Fade In")
-    print(filter_order, filter_order_value)
-    print(forward_damping_mult, forward_damping_mult_value)
+            damping_fade_expo = my_component(id_component="damping_fade_expo_position", lowVal=0, highVal=5, value=damping_fade_expo_value, size="medium", knob_type="Oscar", label=True, name="Fade Exponent")
+    # print(filter_order, filter_order_value)
+    # print(forward_damping_mult, forward_damping_mult_value)
 
     with st.sidebar:
         col1, col2 = st.columns((6,6))
         with col1:
-            backward_damping_mult = my_component(id_component="bdamping_mult_position", lowVal=0, highVal=1, value=backward_damping_mult_value, size="medium", knob_type="Oscar", label=True, name="Fade Out")
+            st.subheader("Fade In")
+            forward_damping_mult = svs.vertical_slider(key="fdamping_mult_position", 
+                    default_value=forward_damping_mult_value, 
+                    step=0.1,
+                    min_value=0, 
+                    max_value=1,
+                    track_color="gray",
+                    thumb_color="black",
+                    slider_color="red"
+                    )
+            if forward_damping_mult == None:
+                forward_damping_mult = forward_damping_mult_value
+            # forward_damping_mult = my_component(id_component="fdamping_mult_position", lowVal=0, highVal=1, value=forward_damping_mult_value, size="medium", knob_type="Oscar", label=True, name="Fade In")
+    
         with col2:
-            damping_fade_expo = my_component(id_component="damping_fade_expo_position", lowVal=0, highVal=5, value=damping_fade_expo_value, size="medium", knob_type="Oscar", label=True, name="Fade Exponent")
-    print(backward_damping_mult, backward_damping_mult_value)
-    print(damping_fade_expo, damping_fade_expo_value)
+            st.subheader("Fade Out")
+            # st.sidebar.markdown('<div style="font-size: 18px; font-weight: bold; font-family: &quot;Source Sans Pro&quot;, sans-serif; color: var(--text-color);">Fade In</div>', unsafe_allow_html=True)
+            backward_damping_mult = svs.vertical_slider(key="bdamping_mult_position", 
+                    default_value=backward_damping_mult_value, 
+                    step=0.1,
+                    min_value=0, 
+                    max_value=1,
+                    track_color="gray",
+                    thumb_color="black",
+                    slider_color="red"
+                    )
+            if backward_damping_mult == None:
+                backward_damping_mult = backward_damping_mult_value
+            # backward_damping_mult = my_component(id_component="bdamping_mult_position", lowVal=0, highVal=1, value=backward_damping_mult_value, size="medium", knob_type="Oscar", label=True, name="Fade Out")
+    # print(backward_damping_mult, backward_damping_mult_value)
+    # print(damping_fade_expo, damping_fade_expo_value)
     st.sidebar.markdown(horizontal_line, unsafe_allow_html=True)
 
 
