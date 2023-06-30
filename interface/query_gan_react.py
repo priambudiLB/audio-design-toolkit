@@ -399,8 +399,9 @@ def main():
 
     st.markdown(f'''
         <style>
-            section[data-testid="stSidebar"] .css-ng1t4o {{width: 28rem;}}
-            section[data-testid="stSidebar"] .css-1d391kg {{width: 28rem;}}
+            section[data-testid="stSidebar"] {{width: 600px;}}
+            .jss1 {{padding-top: 20px;}}
+            div[data-testid="stMarkdownContainer"] {{height: 50px;}}
         </style>
     ''',unsafe_allow_html=True)
     if 'session_uuid' not in st.session_state:
@@ -438,11 +439,11 @@ def main():
     impulse_time_value = float(config_from_example['impulse_time'] if config_from_example is not None else 0.05)
     # impulse_time = st.sidebar.slider('Impulse Width', min_value=0.0, max_value=config.model_list[model_picked]['total_time'], value=impulse_time_value, step=0.01,  format=None, key='impulse_width_position', help=None, args=None, kwargs=None, disabled=False)
     # impulse_time = impulse_time_value
-    with st.sidebar:
-        col1, col2, col3 = st.columns((3,6,3))
-        with col2:
-            impulse_time = my_component(id_component="impulse_width_position", lowVal=0, highVal=config.model_list[model_picked]['total_time'], value=impulse_time_value, size="medium", knob_type="Oscar", label=True, name="Impulse Width")
-    print(impulse_time, impulse_time_value)
+    # with st.sidebar:
+    #     col1, col2, col3 = st.columns((3,6,3))
+    #     with col2:
+    #         impulse_time = my_component(id_component="impulse_width_position", lowVal=0, highVal=config.model_list[model_picked]['total_time'], value=impulse_time_value, size="medium", knob_type="Oscar", label=True, name="Impulse Width")
+    # print(impulse_time, impulse_time_value)
 
     rate_value = config_from_example['locs'] if config_from_example is not None else 'Very Low'
     impulse_rate_config = []
@@ -478,18 +479,63 @@ def main():
     # damping_fade_expo = st.sidebar.slider('Fade Exponent', min_value=0.0, max_value=5.0, value=damping_fade_expo_value, step=1.0,  format=None, key='damping_fade_expo_position', help=None, args=None, kwargs=None, disabled=False)
     # damping_fade_expo = damping_fade_expo_value
 
-    with st.sidebar:
-        col1, col2 = st.columns((6,6))
-        with col1:
-            filter_order = my_component(id_component="filter_order_position", lowVal=0, highVal=5, value=filter_order_value, size="medium", knob_type="Oscar", label=True, name="Filter Order")
-        with col2:
-            damping_fade_expo = my_component(id_component="damping_fade_expo_position", lowVal=0, highVal=5, value=damping_fade_expo_value, size="medium", knob_type="Oscar", label=True, name="Fade Exponent")
+    # with st.sidebar:
+    #     col1, col2 = st.columns((6,6))
+    #     with col1:
+    #         filter_order = my_component(id_component="filter_order_position", lowVal=0, highVal=5, value=filter_order_value, size="medium", knob_type="Oscar", label=True, name="Filter Order")
+    #     with col2:
+    #         damping_fade_expo = my_component(id_component="damping_fade_expo_position", lowVal=0, highVal=5, value=damping_fade_expo_value, size="medium", knob_type="Oscar", label=True, name="Fade Exponent")
     # print(filter_order, filter_order_value)
     # print(forward_damping_mult, forward_damping_mult_value)
 
     with st.sidebar:
-        col1, col2 = st.columns((6,6))
+        col1, col2, col3, col4, col5 = st.columns((2,2,2,2,2))
         with col1:
+            st.subheader("Impulse Width")
+            impulse_time = svs.vertical_slider(key="impulse_width_position", 
+                    default_value=impulse_time_value, 
+                    step=0.01,
+                    min_value=0, 
+                    max_value=config.model_list[model_picked]['total_time'],
+                    track_color="gray",
+                    thumb_color="black",
+                    slider_color="red"
+                    )
+            if impulse_time == None:
+                impulse_time = impulse_time_value
+            # forward_damping_mult = my_component(id_component="fdamping_mult_position", lowVal=0, highVal=1, value=forward_damping_mult_value, size="medium", knob_type="Oscar", label=True, name="Fade In")
+        
+        with col2:
+            st.subheader("Filter Order")
+            filter_order = svs.vertical_slider(key="filter_order_position", 
+                    default_value=impulse_time_value, 
+                    step=1,
+                    min_value=0, 
+                    max_value=5,
+                    track_color="gray",
+                    thumb_color="black",
+                    slider_color="red"
+                    )
+            if filter_order == None:
+                filter_order = filter_order_value
+            # forward_damping_mult = my_component(id_component="fdamping_mult_position", lowVal=0, highVal=1, value=forward_damping_mult_value, size="medium", knob_type="Oscar", label=True, name="Fade In")
+
+        with col3:
+            st.subheader("Fade Exponent")
+            damping_fade_expo = svs.vertical_slider(key="damping_fade_expo_position", 
+                    default_value=damping_fade_expo_value, 
+                    step=1,
+                    min_value=0, 
+                    max_value=5,
+                    track_color="gray",
+                    thumb_color="black",
+                    slider_color="red"
+                    )
+            if damping_fade_expo == None:
+                damping_fade_expo = damping_fade_expo_value
+            # forward_damping_mult = my_component(id_component="fdamping_mult_position", lowVal=0, highVal=1, value=forward_damping_mult_value, size="medium", knob_type="Oscar", label=True, name="Fade In")
+    
+        with col4:
             st.subheader("Fade In")
             forward_damping_mult = svs.vertical_slider(key="fdamping_mult_position", 
                     default_value=forward_damping_mult_value, 
@@ -504,7 +550,7 @@ def main():
                 forward_damping_mult = forward_damping_mult_value
             # forward_damping_mult = my_component(id_component="fdamping_mult_position", lowVal=0, highVal=1, value=forward_damping_mult_value, size="medium", knob_type="Oscar", label=True, name="Fade In")
     
-        with col2:
+        with col5:
             st.subheader("Fade Out")
             # st.sidebar.markdown('<div style="font-size: 18px; font-weight: bold; font-family: &quot;Source Sans Pro&quot;, sans-serif; color: var(--text-color);">Fade In</div>', unsafe_allow_html=True)
             backward_damping_mult = svs.vertical_slider(key="bdamping_mult_position", 
@@ -571,6 +617,12 @@ def main():
         st.markdown(colname, unsafe_allow_html=True)
         st.image(s_recon_pghi)
         st.audio(s_recon, format="audio/wav", start_time=0)#, sample_rate=16000)
+        st.download_button(
+            label="Download Sound",
+            data=s_recon,
+            file_name='Reconstructed_Audio.wav',
+            mime='audio/wav',
+        )
     # with col3:
     #     colname = '<div style="padding-left: 30%;"><h3><b><i>Reconstructed Audio</i></b></h3></div>'
     #     st.markdown(colname, unsafe_allow_html=True)

@@ -12,7 +12,20 @@ const debounce = (func, timeout = 1000) => {
   };
 };
 
-const streamlitSetComponentValue = debounce(Streamlit.setComponentValue, 1000)
+const streamlitSetComponentValue = debounce(e => {
+  window.dataLayer = window.dataLayer || [];
+  function gtag() {
+    console.log(arguments)
+    window.dataLayer.push(arguments)
+  }
+  gtag('event', 'parameter_change', {
+    'app_name': 'myAppName',
+    'screen_name': 'Home',
+    'elementId': e.id,
+    'value': e.currentValue
+  });
+  return Streamlit.setComponentValue(e.currentValue)
+}, 1000)
 /**
  * This is a React-based component template with functional component and hooks.
  */
@@ -159,7 +172,7 @@ const MyComponent = () => {
       //access to the image goes: container div > image wrapper div > image tag
       oldState.knobY = newY
       setState(oldState)
-      streamlitSetComponentValue(oldState.currentValue)
+      streamlitSetComponentValue(oldState)
     }
   }, [state, knobInUse])
 

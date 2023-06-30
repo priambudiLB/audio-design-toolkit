@@ -372,7 +372,12 @@ def main():
         google_analytics.set_google_analytics()
     st.markdown("<h1 style='text-align: center;'>Exploring Environmental Sound Spaces - 2</h1>", unsafe_allow_html=True)
 
-
+    st.markdown(f'''
+        <style>
+            section[data-testid="stSidebar"] {{width: 600px;}}
+            div[data-testid="stMarkdownContainer"] {{height: 50px;}}
+        </style>
+    ''',unsafe_allow_html=True)
     if 'session_uuid' not in st.session_state:
         st.session_state['session_uuid'] = str(uuid.uuid4())
     session_uuid = st.session_state['session_uuid']
@@ -395,18 +400,57 @@ def main():
     'Select Example',
     example_arr_extensionless, key='sefa_selected_preset_option', on_change=on_example_change)
 
-    with st.sidebar:
-        col1, col2, col3 = st.columns((4,4,4))
-        with col1:
-            slider_1_position = my_component(id_component="slider_1_position", lowVal=-5.0, highVal=5.0, value=0.0, size="small", knob_type="Oscar", label=True, name="Dim 1")
-        with col2:
-            slider_2_position = my_component(id_component="slider_2_position", lowVal=-5.0, highVal=5.0, value=0.0, size="small", knob_type="Oscar", label=True, name="Dim 2")
-        with col3:
-            slider_3_position = my_component(id_component="slider_3_position", lowVal=-5.0, highVal=5.0, value=0.0, size="small", knob_type="Oscar", label=True, name="Dim 3")
+    # with st.sidebar:
+    #     col1, col2, col3 = st.columns((4,4,4))
+    #     with col1:
+    #         slider_1_position = my_component(id_component="slider_1_position", lowVal=-5.0, highVal=5.0, value=0.0, size="small", knob_type="Oscar", label=True, name="Dim 1")
+    #     with col2:
+    #         slider_2_position = my_component(id_component="slider_2_position", lowVal=-5.0, highVal=5.0, value=0.0, size="small", knob_type="Oscar", label=True, name="Dim 2")
+    #     with col3:
+    #         slider_3_position = my_component(id_component="slider_3_position", lowVal=-5.0, highVal=5.0, value=0.0, size="small", knob_type="Oscar", label=True, name="Dim 3")
 
     with st.sidebar:
-        col1, col2, col3, col4 = st.columns((3,3,3,3))
+        col1, col2, col3, col4, col5 = st.columns((3,3,3,3, 2))
         with col1:
+            st.subheader("Dim 1")
+            slider_1_position = svs.vertical_slider(key="slider_1_position", 
+                    default_value=0.0, 
+                    step=0.01,
+                    min_value=-5.00, 
+                    max_value=5.00,
+                    track_color="gray",
+                    thumb_color="black",
+                    slider_color="red"
+                    )
+            if slider_1_position == None:
+                slider_1_position = 0.0
+        with col2:
+            st.subheader("Dim 2")
+            slider_2_position = svs.vertical_slider(key="slider_2_position", 
+                    default_value=0.0, 
+                    step=0.01,
+                    min_value=-5.00, 
+                    max_value=5.00,
+                    track_color="gray",
+                    thumb_color="black",
+                    slider_color="red"
+                    )
+            if slider_2_position == None:
+                slider_2_position = 0.0
+        with col3:
+            st.subheader("Dim 3")
+            slider_3_position = svs.vertical_slider(key="slider_3_position", 
+                    default_value=0.0, 
+                    step=0.01,
+                    min_value=-5.00, 
+                    max_value=5.00,
+                    track_color="gray",
+                    thumb_color="black",
+                    slider_color="red"
+                    )
+            if slider_3_position == None:
+                slider_3_position = 0.0
+        with col4:
             st.subheader("Dim 4")
             slider_4_position = svs.vertical_slider(key="slider_4_position", 
                     default_value=0.0, 
@@ -419,7 +463,7 @@ def main():
                     )
             if slider_4_position == None:
                 slider_4_position = 0.0
-        with col2:
+        with col5:
             st.subheader("Dim 5")
             slider_5_position = svs.vertical_slider(key="slider_5_position", 
                     default_value=0.0, 
@@ -432,7 +476,10 @@ def main():
                     )
             if slider_5_position == None:
                 slider_5_position = 0.0
-        with col3:
+    
+    with st.sidebar:
+        col1, col2, col3, col4, col5 = st.columns((3,3,3,3,2))
+        with col1:
             st.subheader("Dim 6")
             slider_6_position = svs.vertical_slider(key="slider_6_position", 
                     default_value=0.0, 
@@ -445,7 +492,7 @@ def main():
                     )
             if slider_6_position == None:
                 slider_6_position = 0.0
-        with col4:
+        with col2:
             st.subheader("Dim 7")
             slider_7_position = svs.vertical_slider(key="slider_7_position", 
                     default_value=0.0, 
@@ -458,10 +505,7 @@ def main():
                     )
             if slider_7_position == None:
                 slider_7_position = 0.0
-    
-    with st.sidebar:
-        col1, col2, col3 = st.columns((4,4,4))
-        with col1:
+        with col3:
             st.subheader("Dim 8")
             slider_8_position = svs.vertical_slider(key="slider_8_position", 
                     default_value=0.0, 
@@ -474,7 +518,7 @@ def main():
                     )
             if slider_8_position == None:
                 slider_8_position = 0.0
-        with col2:
+        with col4:
             st.subheader("Dim 9")
             slider_9_position = svs.vertical_slider(key="slider_9_position", 
                     default_value=0.0, 
@@ -487,7 +531,7 @@ def main():
                     )
             if slider_9_position == None:
                 slider_9_position = 0.0
-        with col3:
+        with col5:
             st.subheader("Dim 10")
             slider_10_position = svs.vertical_slider(key="slider_10_position", 
                     default_value=0.0, 
