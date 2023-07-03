@@ -52,11 +52,16 @@ meter = pyln.Meter(16000)
 parent_dir = os.path.dirname(os.path.abspath(__file__))
 build_dir = os.path.join(parent_dir, "frontend/build")
 
-def my_component(id_component, lowVal, highVal, value, size, knob_type, label, name, key=None):
+def my_component(key,
+                value, 
+                step,
+                label,
+                min_value, 
+                max_value,
+                track_color,
+                thumb_color):
     _component_func = components.declare_component("my_component", path=build_dir)
-    component_value = _component_func(id=id_component,
-    lowVal=lowVal, highVal=highVal, value=value, size=size, type=knob_type,
-    label=label, name=name, key=key, default=value)
+    component_value = _component_func(key=key, value=value, step=step, label=label, min_value=min_value, max_value=max_value, track_color=track_color, thumb_color=thumb_color)
     return component_value
 
 def pghi_stft(x):
@@ -399,9 +404,9 @@ def main():
 
     st.markdown(f'''
         <style>
-            section[data-testid="stSidebar"] {{width: 600px;}}
-            .jss1 {{padding-top: 20px;}}
-            div[data-testid="stMarkdownContainer"] {{height: 50px;}}
+            section[data-testid="stSidebar"] {{width: 650px;}}
+            .stDownloadButton {{text-align: center;}}
+            .stDownloadButton > button {{background-color: #fafafa; color: rgb(19, 23, 32);}}
         </style>
     ''',unsafe_allow_html=True)
     if 'session_uuid' not in st.session_state:
@@ -488,79 +493,76 @@ def main():
     # print(filter_order, filter_order_value)
     # print(forward_damping_mult, forward_damping_mult_value)
 
+    print(impulse_time_value, filter_order_value, damping_fade_expo_value, forward_damping_mult_value, backward_damping_mult_value)
+
     with st.sidebar:
-        col1, col2, col3, col4, col5 = st.columns((2,2,2,2,2))
+        col1, col2, col3, col4, col5 = st.columns(5)
         with col1:
-            st.subheader("Impulse Width")
-            impulse_time = svs.vertical_slider(key="impulse_width_position", 
-                    default_value=impulse_time_value, 
+            impulse_time = my_component(key="impulse_width_position", 
+                    value=impulse_time_value, 
                     step=0.01,
                     min_value=0, 
                     max_value=config.model_list[model_picked]['total_time'],
                     track_color="gray",
                     thumb_color="black",
-                    slider_color="red"
+                    label="Impulse Width"
                     )
             if impulse_time == None:
                 impulse_time = impulse_time_value
             # forward_damping_mult = my_component(id_component="fdamping_mult_position", lowVal=0, highVal=1, value=forward_damping_mult_value, size="medium", knob_type="Oscar", label=True, name="Fade In")
         
         with col2:
-            st.subheader("Filter Order")
-            filter_order = svs.vertical_slider(key="filter_order_position", 
-                    default_value=impulse_time_value, 
+            filter_order = my_component(key="filter_order_position", 
+                    value=filter_order_value, 
                     step=1,
                     min_value=0, 
                     max_value=5,
                     track_color="gray",
                     thumb_color="black",
-                    slider_color="red"
+                    label="Filter Order"
                     )
             if filter_order == None:
                 filter_order = filter_order_value
             # forward_damping_mult = my_component(id_component="fdamping_mult_position", lowVal=0, highVal=1, value=forward_damping_mult_value, size="medium", knob_type="Oscar", label=True, name="Fade In")
 
         with col3:
-            st.subheader("Fade Exponent")
-            damping_fade_expo = svs.vertical_slider(key="damping_fade_expo_position", 
-                    default_value=damping_fade_expo_value, 
+            damping_fade_expo = my_component(key="damping_fade_expo_position", 
+                    value=damping_fade_expo_value, 
                     step=1,
                     min_value=0, 
                     max_value=5,
                     track_color="gray",
                     thumb_color="black",
-                    slider_color="red"
+                    label="Fade Exponent"
                     )
             if damping_fade_expo == None:
                 damping_fade_expo = damping_fade_expo_value
             # forward_damping_mult = my_component(id_component="fdamping_mult_position", lowVal=0, highVal=1, value=forward_damping_mult_value, size="medium", knob_type="Oscar", label=True, name="Fade In")
     
         with col4:
-            st.subheader("Fade In")
-            forward_damping_mult = svs.vertical_slider(key="fdamping_mult_position", 
-                    default_value=forward_damping_mult_value, 
+            forward_damping_mult = my_component(key="fdamping_mult_position", 
+                    value=forward_damping_mult_value, 
                     step=0.1,
                     min_value=0, 
                     max_value=1,
                     track_color="gray",
                     thumb_color="black",
-                    slider_color="red"
+                    label="Fade In"
                     )
             if forward_damping_mult == None:
                 forward_damping_mult = forward_damping_mult_value
             # forward_damping_mult = my_component(id_component="fdamping_mult_position", lowVal=0, highVal=1, value=forward_damping_mult_value, size="medium", knob_type="Oscar", label=True, name="Fade In")
     
         with col5:
-            st.subheader("Fade Out")
             # st.sidebar.markdown('<div style="font-size: 18px; font-weight: bold; font-family: &quot;Source Sans Pro&quot;, sans-serif; color: var(--text-color);">Fade In</div>', unsafe_allow_html=True)
-            backward_damping_mult = svs.vertical_slider(key="bdamping_mult_position", 
-                    default_value=backward_damping_mult_value, 
+            backward_damping_mult = my_component(key="bdamping_mult_position", 
+                    value=backward_damping_mult_value, 
                     step=0.1,
                     min_value=0, 
                     max_value=1,
                     track_color="gray",
                     thumb_color="black",
-                    slider_color="red"
+                    label="Fade Out"
                     )
             if backward_damping_mult == None:
                 backward_damping_mult = backward_damping_mult_value

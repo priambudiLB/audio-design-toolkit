@@ -54,13 +54,17 @@ meter = pyln.Meter(16000)
 parent_dir = os.path.dirname(os.path.abspath(__file__))
 build_dir = os.path.join(parent_dir, "frontend/build")
 
-def my_component(id_component, lowVal, highVal, value, size, knob_type, label, name, key=None):
+def my_component(key,
+                value, 
+                step,
+                label,
+                min_value, 
+                max_value,
+                track_color,
+                thumb_color):
     _component_func = components.declare_component("my_component", path=build_dir)
-    component_value = _component_func(id=id_component,
-    lowVal=lowVal, highVal=highVal, value=value, size=size, type=knob_type,
-    label=label, name=name, key=key, default=value)
+    component_value = _component_func(key=key, value=value, step=step, label=label, min_value=min_value, max_value=max_value, track_color=track_color, thumb_color=thumb_color)
     return component_value
-
 
 def pghi_istft(x):
     model = st.session_state['model_picked']
@@ -375,7 +379,7 @@ def main():
     st.markdown(f'''
         <style>
             section[data-testid="stSidebar"] {{width: 600px;}}
-            div[data-testid="stMarkdownContainer"] {{height: 50px;}}
+            .stDownloadButton {{text-align: center;}}
         </style>
     ''',unsafe_allow_html=True)
     if 'session_uuid' not in st.session_state:
@@ -400,6 +404,8 @@ def main():
     'Select Example',
     example_arr_extensionless, key='sefa_selected_preset_option', on_change=on_example_change)
 
+    horizontal_line = '<div style="border: solid #404040 2px; margin: 16px 0"></div>'
+    st.sidebar.markdown(horizontal_line, unsafe_allow_html=True)
     # with st.sidebar:
     #     col1, col2, col3 = st.columns((4,4,4))
     #     with col1:
@@ -410,137 +416,126 @@ def main():
     #         slider_3_position = my_component(id_component="slider_3_position", lowVal=-5.0, highVal=5.0, value=0.0, size="small", knob_type="Oscar", label=True, name="Dim 3")
 
     with st.sidebar:
-        col1, col2, col3, col4, col5 = st.columns((3,3,3,3, 2))
+        col1, col2, col3, col4, col5 = st.columns(5)
         with col1:
-            st.subheader("Dim 1")
-            slider_1_position = svs.vertical_slider(key="slider_1_position", 
-                    default_value=0.0, 
+            slider_1_position = my_component(key="slider_1_position", 
+                    value=0.0, 
                     step=0.01,
+                    label="Dim 1",
                     min_value=-5.00, 
                     max_value=5.00,
                     track_color="gray",
-                    thumb_color="black",
-                    slider_color="red"
-                    )
+                    thumb_color="black")
             if slider_1_position == None:
                 slider_1_position = 0.0
         with col2:
-            st.subheader("Dim 2")
-            slider_2_position = svs.vertical_slider(key="slider_2_position", 
-                    default_value=0.0, 
+            slider_2_position = my_component(key="slider_2_position", 
+                    value=0.0, 
                     step=0.01,
                     min_value=-5.00, 
                     max_value=5.00,
                     track_color="gray",
                     thumb_color="black",
-                    slider_color="red"
+                    label="Dim 2"
                     )
             if slider_2_position == None:
                 slider_2_position = 0.0
         with col3:
-            st.subheader("Dim 3")
-            slider_3_position = svs.vertical_slider(key="slider_3_position", 
-                    default_value=0.0, 
+            slider_3_position = my_component(key="slider_3_position", 
+                    value=0.0, 
                     step=0.01,
                     min_value=-5.00, 
                     max_value=5.00,
                     track_color="gray",
                     thumb_color="black",
-                    slider_color="red"
+                    label="Dim 3"
                     )
             if slider_3_position == None:
                 slider_3_position = 0.0
         with col4:
-            st.subheader("Dim 4")
-            slider_4_position = svs.vertical_slider(key="slider_4_position", 
-                    default_value=0.0, 
+            slider_4_position = my_component(key="slider_4_position", 
+                    value=0.0, 
                     step=0.01,
                     min_value=-5.00, 
                     max_value=5.00,
                     track_color="gray",
                     thumb_color="black",
-                    slider_color="red"
+                    label="Dim 4"
                     )
             if slider_4_position == None:
                 slider_4_position = 0.0
         with col5:
-            st.subheader("Dim 5")
-            slider_5_position = svs.vertical_slider(key="slider_5_position", 
-                    default_value=0.0, 
+            slider_5_position = my_component(key="slider_5_position", 
+                    value=0.0, 
                     step=0.01,
                     min_value=-5.00, 
                     max_value=5.00,
                     track_color="gray",
                     thumb_color="black",
-                    slider_color="red"
+                    label="Dim 5"
                     )
             if slider_5_position == None:
                 slider_5_position = 0.0
     
     with st.sidebar:
-        col1, col2, col3, col4, col5 = st.columns((3,3,3,3,2))
+        col1, col2, col3, col4, col5 = st.columns(5)
         with col1:
-            st.subheader("Dim 6")
-            slider_6_position = svs.vertical_slider(key="slider_6_position", 
-                    default_value=0.0, 
+            slider_6_position = my_component(key="slider_6_position", 
+                    value=0.0, 
                     step=0.01,
                     min_value=-5.00, 
                     max_value=5.00,
                     track_color="gray",
                     thumb_color="black",
-                    slider_color="red"
+                    label="Dim 6"
                     )
             if slider_6_position == None:
                 slider_6_position = 0.0
         with col2:
-            st.subheader("Dim 7")
-            slider_7_position = svs.vertical_slider(key="slider_7_position", 
-                    default_value=0.0, 
+            slider_7_position = my_component(key="slider_7_position", 
+                    value=0.0, 
                     step=0.01,
                     min_value=-5.00, 
                     max_value=5.00,
                     track_color="gray",
                     thumb_color="black",
-                    slider_color="red"
+                    label="Dim 7"
                     )
             if slider_7_position == None:
                 slider_7_position = 0.0
         with col3:
-            st.subheader("Dim 8")
-            slider_8_position = svs.vertical_slider(key="slider_8_position", 
-                    default_value=0.0, 
+            slider_8_position = my_component(key="slider_8_position", 
+                    value=0.0, 
                     step=0.01,
                     min_value=-5.00, 
                     max_value=5.00,
                     track_color="gray",
                     thumb_color="black",
-                    slider_color="red"
+                    label="Dim 8"
                     )
             if slider_8_position == None:
                 slider_8_position = 0.0
         with col4:
-            st.subheader("Dim 9")
-            slider_9_position = svs.vertical_slider(key="slider_9_position", 
-                    default_value=0.0, 
+            slider_9_position = my_component(key="slider_9_position", 
+                    value=0.0, 
                     step=0.01,
                     min_value=-5.00, 
                     max_value=5.00,
                     track_color="gray",
                     thumb_color="black",
-                    slider_color="red"
+                    label="Dim 9"
                     )
             if slider_9_position == None:
                 slider_9_position = 0.0
         with col5:
-            st.subheader("Dim 10")
-            slider_10_position = svs.vertical_slider(key="slider_10_position", 
-                    default_value=0.0, 
+            slider_10_position = my_component(key="slider_10_position", 
+                    value=0.0, 
                     step=0.01,
                     min_value=-5.00, 
                     max_value=5.00,
                     track_color="gray",
                     thumb_color="black",
-                    slider_color="red"
+                    label="Dim 10"
                     )
             if slider_10_position == None:
                 slider_10_position = 0.0
@@ -558,6 +553,14 @@ def main():
         slider_6_position, slider_7_position,slider_8_position, slider_9_position,slider_10_position], session_uuid)
     spectrogram_placeholder.image(s[0])
     audio_element = audio_placeholder.audio(s[1], format="audio/wav", start_time=0)
+    col1, col2, col3= st.columns(3)
+    with col2:
+        st.download_button(
+            label="Download Sound",
+            data=s[1],
+            file_name='Algo_2_Audio.wav',
+            mime='audio/wav',
+        )
     # print(audio_element)
     # draw_audio() # Unfortunately audio is not redrawable
     
