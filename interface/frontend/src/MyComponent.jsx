@@ -45,6 +45,9 @@ const VerticalSlider = (props) => {
   // }
   const [state, setState] = useState(value)
   useEffect(() => Streamlit.setFrameHeight());
+  useEffect(() => {
+    setState(value)
+  }, [value])
   const handleChange = (_, newValue) => {
     setState(newValue);
     streamlitSetComponentValue(newValue);
@@ -109,9 +112,12 @@ const VerticalSlider = (props) => {
         <p style={{
           wordBreak: "break-word",
           fontSize: 14,
-          marginBottom: '1.5rem',
+          marginBottom: '1rem',
           fontFamily: theme.font,
-          color: theme.textColor
+          color: theme.textColor,
+          // lineHeight: '32px',
+          height: '32px',
+          textAlign: 'center'
         }}>{label}</p>
         <Slider
           min={min_value}
@@ -127,7 +133,7 @@ const VerticalSlider = (props) => {
           marks={[{ value: Number(min_value), label: String(min_value) }, { value: Number(max_value), label: String(max_value) }]}
         />
       </ThemeProvider>
-    </Box>
+    </Box >
 
   );
 }

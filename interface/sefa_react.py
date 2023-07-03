@@ -380,6 +380,7 @@ def main():
         <style>
             section[data-testid="stSidebar"] {{width: 600px;}}
             .stDownloadButton {{text-align: center;}}
+            .stDownloadButton > button {{background-color: #fafafa; color: rgb(19, 23, 32);}}
         </style>
     ''',unsafe_allow_html=True)
     if 'session_uuid' not in st.session_state:
