@@ -1,6 +1,12 @@
-import { Streamlit } from "streamlit-component-lib"
-import { useRenderData } from "streamlit-component-lib-react-hooks"
-import React, { useState, useEffect, useCallback } from "react"
+import {
+  Streamlit,
+  withStreamlitConnection,
+} from "streamlit-component-lib"
+import React, { useEffect, useState } from "react"
+import Box from '@material-ui/core/Box'
+import { createTheme } from '@material-ui/core/styles';
+import { Slider } from "@material-ui/core";
+import { ThemeProvider } from '@material-ui/styles';
 
 const debounce = (func, timeout = 1000) => {
   let timer;
@@ -12,7 +18,7 @@ const debounce = (func, timeout = 1000) => {
   };
 };
 
-const streamlitSetComponentValue = debounce(e => {
+const streamlitSetComponentValue = debounce(newValue => {
   window.dataLayer = window.dataLayer || [];
   function gtag() {
     console.log(arguments)
@@ -21,196 +27,110 @@ const streamlitSetComponentValue = debounce(e => {
   gtag('event', 'parameter_change', {
     'app_name': 'myAppName',
     'screen_name': 'Home',
-    'elementId': e.id,
-    'value': e.currentValue
+    'elementId': newValue,
+    'value': newValue
   });
-  return Streamlit.setComponentValue(e.currentValue)
-}, 1000)
-/**
- * This is a React-based component template with functional component and hooks.
- */
-const MyComponent = () => {
-  // let id = "knob1"
-  // let lowVal = 1
-  // let highVal = 100
-  // let value = 8
-  // let size = "medium"
-  // let type = "Oscar"
-  // let label = true
-  // let name = "Default"
+  console.log(newValue)
+  return Streamlit.setComponentValue(newValue)
+}, 500)
 
-  let renderData = useRenderData()
-  let id = renderData.args["id"]
-  let lowVal = renderData.args["lowVal"]
-  let highVal = renderData.args["highVal"]
-  let value = renderData.args["value"]
-  let size = renderData.args["size"]
-  let type = renderData.args["type"]
-  let label = renderData.args["label"]
-  let name = renderData.args["name"]
-
-  const [knobInUse, setKnobInUse] = useState({
-    id: "",
-    initY: 0,
-    currentKnob: {}
-  })
-
-  let currentValue;
-  if (value > highVal) {
-    currentValue = highVal;
-  } else if (value < lowVal) {
-    currentValue = lowVal;
-  } else {
-    currentValue = value;
-  }
-  const scaler = 100 / (highVal - lowVal);
-
-  if (size === "xlarge") {
-    size = 128;
-  } else if (size === "large") {
-    size = 85;
-  } else if (size === "medium") {
-    size = 50;
-  } else if (size === "small") {
-    size = 40;
-  } else {
-    size = 30;
-  }
-
-  let initialSum =
-    Math.floor(((value - lowVal) * scaler) / 2) * size;
-
-  let initialKnobY = `translateY(-${initialSum}px)`;
-
-  const imgFile = `${type}/${type}_${size}.png`;
-
-  const [state, setState] = useState({
-    id,
-    lowVal,
-    highVal,
-    currentValue,
-    scaler,
-    type,
-    label,
-    size,
-    imgFile,
-    knobY: initialKnobY,
-    name
-  })
-
-  const theme = renderData.theme
+const VerticalSlider = (props) => {
+  console.log(props)
+  const { label, min_value, max_value, value, step, track_color, thumb_color } = props.args;
+  // const [min_value, max_value, value, step, track_color, slider_color, thumb_color] = [-5, 5, 0, 0.01, "gray", "red", "black"];
+  const theme = props.theme
   // const theme = {
   //   font: 'Serif',
   //   textColor: 'black'
   // }
+  const [state, setState] = useState(value)
+  useEffect(() => Streamlit.setFrameHeight());
+  const handleChange = (_, newValue) => {
+    setState(newValue);
+    streamlitSetComponentValue(newValue);
+  };
 
-  function resetKnobInUse() {
-    setKnobInUse({ id: "", initY: 0, value: 0, currentKnob: null })
-  }
 
-  const handleMouseDown = e => {
-    setKnobInUse({
-      id: id,
-      initY: e.pageY,
-      value: currentValue, //storing the value
-      currentKnob: state //storing the reference
-    })
-  }
-
-  const handleTouchStart = e => {
-    setKnobInUse({
-      id: id,
-      initY: e.pageY,
-      value: currentValue, //storing the value
-      currentKnob: state //storing the reference
-    })
-  }
-
-  const handleMouseMove = useCallback(function (e) {
-    if (knobInUse.id !== "") {
-      const oldState = { ...state };
-      //freeze mouse drag activity if user hits top or bottom of the page
-      if (e.pageY <= 10 || e.pageY >= document.body.clientHeight - 10) {
-        setKnobInUse({ id: "", initY: 0, currentKnob: null })
-        return;
-      } else {
-        //calculate new knob value
-        oldState.currentValue =
-          Math.round((oldState.currentValue =
-            knobInUse.value +
-            ((knobInUse.initY - e.pageY) * 1.7) /
-            knobInUse.currentKnob.scaler + Number.EPSILON) * 100) / 100
-
-        //use max/min variables for easier reading
-        let max = knobInUse.currentKnob.highVal,
-          min = knobInUse.currentKnob.lowVal;
-
-        //ensure the know value does not exceed max and/or minimum values
-        if (oldState.currentValue > max) {
-          oldState.currentValue = max;
-        } else if (oldState.currentValue < min) {
-          oldState.currentValue = min;
+  const snowflakeTheme = createTheme({
+    overrides: {
+      MuiSlider: {
+        root: {
+          height: 200,
+          fontSize: 10,
+          marginBottom: 0,
+          fontWeight: 400,
+          fontFamily: theme.font
+        },
+        markLabel: {
+          color: theme.textColor,
+          fontFamily: theme.font,
+          paddingLeft: 15,
+          fontSize: 14
+        },
+        markLabelActive: {
+          color: theme.textColor,
+          fontFamily: theme.font,
+          paddingLeft: 15,
+          fontSize: 14
+        },
+        markActive: {
+          opacity: 0
+        },
+        valueLabel: {
+          fontFamily: theme.font,
+        },
+        thumb: {
+          color: thumb_color,
+          marginLeft: "4px !important"
+        },
+        track: {
+          color: theme.primaryColor,
+          width: "10px !important",
+          marginLeft: "5px !important",
+          borderRadius: 2,
+          marginBottom: 0,
+          borderWidth: 1
+        },
+        rail: {
+          color: track_color,
+          width: "10px !important",
+          marginLeft: "5px !important",
+          borderRadius: 2,
+          marginBottom: 0
         }
       }
-
-      //update label (if user wants labels)
-      if (knobInUse.currentKnob.label !== false) {
-        oldState.label = oldState.currentValue
-      }
-
-      //change the image position to match
-      let sum =
-        (Math.floor(
-          ((oldState.currentValue - knobInUse.currentKnob.lowVal) *
-            knobInUse.currentKnob.scaler) /
-          2
-        ) +
-          0) *
-        knobInUse.currentKnob.size;
-
-      let newY = `translateY(-${sum}px)`;
-      //access to the image goes: container div > image wrapper div > image tag
-      oldState.knobY = newY
-      setState(oldState)
-      streamlitSetComponentValue(oldState)
     }
-  }, [state, knobInUse])
-
-  useEffect(() => {
-    document.body.addEventListener("mousemove", handleMouseMove);
-    document.body.addEventListener("touchmove", handleMouseMove);
-    document.body.addEventListener("mouseup", resetKnobInUse);
-    document.body.addEventListener("touchend", resetKnobInUse);
-    return () => {
-      document.body.removeEventListener('mousemove', handleMouseMove);
-      document.body.removeEventListener('touchmove', handleMouseMove);
-      document.body.removeEventListener("mouseup", resetKnobInUse);
-      document.body.removeEventListener("touchend", resetKnobInUse);
-    }
-  }, [handleMouseMove])
+  });
+  // return <>a</>
 
   return (
-    <>
-      <div id={state.id} style={{ width: state.size * 2.5, display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 16 }}>
-        <div style={{ textAlign: 'center', width: '100%', margin: '0px auto', marginBottom: 24, fontSize: '18px', fontWeight: 'bold', fontFamily: theme.font, color: theme.textColor }}>{state.name}</div>
-        <div style={{ overflow: 'hidden', height: '50px', userSelect: 'none' }}>
-          <img
-            alt={state.id}
-            draggable={false}
-            style={{ transform: state.knobY }}
-            src={"https://raw.githubusercontent.com/ColinBD/JSAudioKnobs/master/docs/knobs/" + state.imgFile}
-            onMouseDown={handleMouseDown}
-            onTouchStart={handleTouchStart}
-          />
-        </div>
-        <div style={{ display: 'flex', width: '70%' }}>
-          <div style={{ textAlign: 'center', width: '100%', margin: '-10px auto', fontSize: '14px', fontFamily: theme.font, color: theme.textColor }}>{state.lowVal}</div>
-          <div style={{ textAlign: 'center', width: '100%', margin: '10px auto', fontSize: '16px', fontFamily: theme.font, fontWeight: 'bold', color: theme.textColor }}>{state.currentValue}</div>
-          <div style={{ textAlign: 'center', width: '100%', margin: '-10px auto', fontSize: '14px', fontFamily: theme.font, color: theme.textColor }}>{state.highVal}</div>
-        </div>
-      </div>
-    </>
-  )
+    <Box sx={{ height: 200, marginRight: 10, marginLeft: 10, paddingTop: 10 }}>
+      <ThemeProvider theme={snowflakeTheme}>
+        <p style={{
+          wordBreak: "break-word",
+          fontSize: 14,
+          marginBottom: '1.5rem',
+          fontFamily: theme.font,
+          color: theme.textColor
+        }}>{label}</p>
+        <Slider
+          min={min_value}
+          step={step}
+          max={max_value}
+          defaultValue={value}
+          value={state}
+          onChange={handleChange}
+          valueLabelDisplay="on"
+          orientation="vertical"
+          aria-labelledby="continuous-slider"
+          ThumbComponent="span"
+          marks={[{ value: Number(min_value), label: String(min_value) }, { value: Number(max_value), label: String(max_value) }]}
+        />
+      </ThemeProvider>
+    </Box>
+
+  );
 }
 
-export default MyComponent
+export default
+  withStreamlitConnection(VerticalSlider);
