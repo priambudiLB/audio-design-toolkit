@@ -61,9 +61,10 @@ def my_component(key,
                 min_value, 
                 max_value,
                 track_color,
+                example,
                 thumb_color):
     _component_func = components.declare_component("my_component", path=build_dir)
-    component_value = _component_func(key=key, value=value, step=step, label=label, min_value=min_value, max_value=max_value, track_color=track_color, thumb_color=thumb_color)
+    component_value = _component_func(key=key, value=value, step=step, label=label, min_value=min_value, max_value=max_value, track_color=track_color, example=example, thumb_color=thumb_color)
     return component_value
 
 def pghi_istft(x):
@@ -426,6 +427,7 @@ def main():
                     min_value=-5.00, 
                     max_value=5.00,
                     track_color="gray",
+                    example=sefa_selected_preset_option,
                     thumb_color="black")
             if slider_1_position == None:
                 slider_1_position = 0.0
@@ -437,6 +439,7 @@ def main():
                     max_value=5.00,
                     track_color="gray",
                     thumb_color="black",
+                    example=sefa_selected_preset_option,
                     label="Dim 2"
                     )
             if slider_2_position == None:
@@ -449,6 +452,7 @@ def main():
                     max_value=5.00,
                     track_color="gray",
                     thumb_color="black",
+                    example=sefa_selected_preset_option,
                     label="Dim 3"
                     )
             if slider_3_position == None:
@@ -461,6 +465,7 @@ def main():
                     max_value=5.00,
                     track_color="gray",
                     thumb_color="black",
+                    example=sefa_selected_preset_option,
                     label="Dim 4"
                     )
             if slider_4_position == None:
@@ -473,6 +478,7 @@ def main():
                     max_value=5.00,
                     track_color="gray",
                     thumb_color="black",
+                    example=sefa_selected_preset_option,
                     label="Dim 5"
                     )
             if slider_5_position == None:
@@ -488,6 +494,7 @@ def main():
                     max_value=5.00,
                     track_color="gray",
                     thumb_color="black",
+                    example=sefa_selected_preset_option,
                     label="Dim 6"
                     )
             if slider_6_position == None:
@@ -500,6 +507,7 @@ def main():
                     max_value=5.00,
                     track_color="gray",
                     thumb_color="black",
+                    example=sefa_selected_preset_option,
                     label="Dim 7"
                     )
             if slider_7_position == None:
@@ -512,6 +520,7 @@ def main():
                     max_value=5.00,
                     track_color="gray",
                     thumb_color="black",
+                    example=sefa_selected_preset_option,
                     label="Dim 8"
                     )
             if slider_8_position == None:
@@ -524,6 +533,7 @@ def main():
                     max_value=5.00,
                     track_color="gray",
                     thumb_color="black",
+                    example=sefa_selected_preset_option,
                     label="Dim 9"
                     )
             if slider_9_position == None:
@@ -536,6 +546,7 @@ def main():
                     max_value=5.00,
                     track_color="gray",
                     thumb_color="black",
+                    example=sefa_selected_preset_option,
                     label="Dim 10"
                     )
             if slider_10_position == None:

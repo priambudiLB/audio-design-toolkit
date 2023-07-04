@@ -59,9 +59,10 @@ def my_component(key,
                 min_value, 
                 max_value,
                 track_color,
+                example,
                 thumb_color):
     _component_func = components.declare_component("my_component", path=build_dir)
-    component_value = _component_func(key=key, value=value, step=step, label=label, min_value=min_value, max_value=max_value, track_color=track_color, thumb_color=thumb_color)
+    component_value = _component_func(key=key, value=value, step=step, label=label, min_value=min_value, max_value=max_value, track_color=track_color, example=example, thumb_color=thumb_color)
     return component_value
 
 def pghi_stft(x):
@@ -493,7 +494,7 @@ def main():
     # print(filter_order, filter_order_value)
     # print(forward_damping_mult, forward_damping_mult_value)
 
-    print(impulse_time_value, filter_order_value, damping_fade_expo_value, forward_damping_mult_value, backward_damping_mult_value)
+    # print(impulse_time_value, filter_order_value, damping_fade_expo_value, forward_damping_mult_value, backward_damping_mult_value)
 
     with st.sidebar:
         col1, col2, col3, col4, col5 = st.columns(5)
@@ -505,6 +506,7 @@ def main():
                     max_value=config.model_list[model_picked]['total_time'],
                     track_color="gray",
                     thumb_color="black",
+                    example=example_picked,
                     label="Impulse Width"
                     )
             if impulse_time == None:
@@ -519,6 +521,7 @@ def main():
                     max_value=5,
                     track_color="gray",
                     thumb_color="black",
+                    example=example_picked,
                     label="Filter Order"
                     )
             if filter_order == None:
@@ -529,10 +532,11 @@ def main():
             damping_fade_expo = my_component(key="damping_fade_expo_position", 
                     value=damping_fade_expo_value, 
                     step=1,
-                    min_value=0, 
+                    min_value=1, 
                     max_value=5,
                     track_color="gray",
                     thumb_color="black",
+                    example=example_picked,
                     label="Fade Exponent"
                     )
             if damping_fade_expo == None:
@@ -547,6 +551,7 @@ def main():
                     max_value=1,
                     track_color="gray",
                     thumb_color="black",
+                    example=example_picked,
                     label="Fade In"
                     )
             if forward_damping_mult == None:
@@ -562,6 +567,7 @@ def main():
                     max_value=1,
                     track_color="gray",
                     thumb_color="black",
+                    example=example_picked,
                     label="Fade Out"
                     )
             if backward_damping_mult == None:

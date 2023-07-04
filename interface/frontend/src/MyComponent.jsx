@@ -21,7 +21,6 @@ const debounce = (func, timeout = 1000) => {
 const streamlitSetComponentValue = debounce(newValue => {
   window.dataLayer = window.dataLayer || [];
   function gtag() {
-    console.log(arguments)
     window.dataLayer.push(arguments)
   }
   gtag('event', 'parameter_change', {
@@ -30,13 +29,11 @@ const streamlitSetComponentValue = debounce(newValue => {
     'elementId': newValue,
     'value': newValue
   });
-  console.log(newValue)
   return Streamlit.setComponentValue(newValue)
 }, 500)
 
 const VerticalSlider = (props) => {
-  console.log(props)
-  const { label, min_value, max_value, value, step, track_color, thumb_color } = props.args;
+  const { label, example, min_value, max_value, value, step, track_color, thumb_color } = props.args;
   // const [min_value, max_value, value, step, track_color, slider_color, thumb_color] = [-5, 5, 0, 0.01, "gray", "red", "black"];
   const theme = props.theme
   // const theme = {
@@ -47,12 +44,15 @@ const VerticalSlider = (props) => {
   useEffect(() => Streamlit.setFrameHeight());
   useEffect(() => {
     setState(value)
-  }, [value])
+  }, [example, value])
   const handleChange = (_, newValue) => {
     setState(newValue);
     streamlitSetComponentValue(newValue);
   };
 
+  // if (state !== value) {
+  //   setState(value)
+  // }
 
   const snowflakeTheme = createTheme({
     overrides: {
@@ -123,7 +123,7 @@ const VerticalSlider = (props) => {
           min={min_value}
           step={step}
           max={max_value}
-          defaultValue={value}
+          // defaultValue={value}
           value={state}
           onChange={handleChange}
           valueLabelDisplay="on"
