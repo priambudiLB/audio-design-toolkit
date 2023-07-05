@@ -362,7 +362,7 @@ def on_example_change():
 def main():
     if config.allow_analytics:
         google_analytics.set_google_analytics()
-    st.markdown("<h1 style='text-align: center;'>Exploring Environmental Sound Spaces - 2</h1>", unsafe_allow_html=True)
+    st.markdown("<div style='display: flex;justify-content: center;'><h1 style='text-align: center; width: 500px;'>Exploring Environmental Sound Spaces - 2</h1></div>", unsafe_allow_html=True)
 
     st.markdown(f'''
         <style>
@@ -555,14 +555,14 @@ def main():
         slider_6_position, slider_7_position,slider_8_position, slider_9_position,slider_10_position], session_uuid)
     spectrogram_placeholder.image(s[0])
     audio_element = audio_placeholder.audio(s[1], format="audio/wav", start_time=0)
-    col1, col2, col3= st.columns(3)
-    with col2:
-        st.download_button(
-            label="Download Sound",
-            data=s[1],
-            file_name='Algo_2_Audio.wav',
-            mime='audio/wav',
-        )
+    # col1, col2, col3= st.columns(3)
+    # with col2:
+    #     st.download_button(
+    #         label="Download Sound",
+    #         data=s[1],
+    #         file_name='Algo_2_Audio.wav',
+    #         mime='audio/wav',
+    #     )
     # print(audio_element)
     # draw_audio() # Unfortunately audio is not redrawable
     
