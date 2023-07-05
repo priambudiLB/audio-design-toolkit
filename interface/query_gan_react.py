@@ -405,7 +405,10 @@ def main():
 
     st.markdown(f'''
         <style>
-            section[data-testid="stSidebar"] {{width: 650px;}}
+            section[data-testid="stSidebar"] {{
+                min-width: 650px;
+                max-width: 650px;
+            }}
             .stDownloadButton {{text-align: center;}}
             .stDownloadButton > button {{background-color: #fafafa; color: rgb(19, 23, 32);}}
         </style>
