@@ -14,9 +14,9 @@ import streamlit as st
 
 app = MultiPage()
 app.add_app('our-algo', pg_control_main)
-app.add_app('algo1', query_gan_main)
-app.add_app('algo2', sefa_main)
-app.add_app('algo1-react', query_gan_react)
-app.add_app('algo2-react', sefa_react)
+app.add_app('algo-1', query_gan_main)
+app.add_app('algo-2', sefa_main)
+app.add_app('algo1', query_gan_react)
+app.add_app('algo2', sefa_react)
 app.run()
 
