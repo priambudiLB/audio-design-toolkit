@@ -408,7 +408,11 @@ def main():
 
     if 'add_irregularity' not in st.session_state:
         st.session_state['add_irregularity'] = config_from_example['locs_burst'] if config_from_example is not None else False
-    add_irregularity = st.sidebar.checkbox('Add Irregularity to Rate', key='add_irregularity')
+    
+    if model_picked=='environmental_sounds':
+        add_irregularity = st.sidebar.checkbox('Add Irregularity to Rate', key='add_irregularity')
+    else:
+        add_irregularity = st.session_state['add_irregularity']
 
     locs_value = get_locs(rate, add_irregularity, config.model_list[model_picked]['total_time'])
 

@@ -8,6 +8,14 @@ import { createTheme } from '@material-ui/core/styles';
 import { Slider } from "@material-ui/core";
 import { ThemeProvider } from '@material-ui/styles';
 
+function isInt(n) {
+  return n % 1 === 0;
+}
+
+function intToFloat(num) {
+  return isInt(num) ? `${num > 0 ? '+' : ''}${num.toFixed(1)}` : `${num > 0 ? '+' : ''}${num}`;
+}
+
 const debounce = (func, timeout = 1000) => {
   let timer;
   return (...args) => {
@@ -121,17 +129,18 @@ const VerticalSlider = (props) => {
           textAlign: 'center'
         }}>{label}</p>
         <Slider
+          aria-label="Always visible"
           min={min_value}
           step={step}
           max={max_value}
-          // defaultValue={value}
           value={state}
           onChange={handleChange}
           valueLabelDisplay="on"
+          valueLabelFormat={min_value >= 0 ? f => f : intToFloat}
           orientation="vertical"
           aria-labelledby="continuous-slider"
           ThumbComponent="span"
-          marks={[{ value: Number(min_value), label: String(min_value) }, { value: Number(max_value), label: String(max_value) }]}
+          marks={[{ value: Number(min_value), label: String(intToFloat(Number(min_value))) }, { value: Number(max_value), label: String(intToFloat(Number(max_value))) }]}
         />
       </ThemeProvider>
     </Box >
