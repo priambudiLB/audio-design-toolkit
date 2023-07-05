@@ -7,9 +7,6 @@ from sefa_react import main as sefa_react
 #from GaverAnalysisSynthesis import main as GaverAnalysisSynthesisMain
 #from SefaInterface import main as SefaInterfaceMain
 
-
-import streamlit as st
-
 # Based on and modified from https://github.com/upraneelnihar/streamlit-multiapps
 
 app = MultiPage()

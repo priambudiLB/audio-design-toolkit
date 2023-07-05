@@ -1,7 +1,5 @@
 import streamlit as st
 import streamlit.components.v1 as components
-import streamlit_vertical_slider  as svs
-import pandas as pd
 import numpy as np
 import io 
 import matplotlib.pyplot as plt
@@ -18,7 +16,6 @@ import torch
 
 import librosa
 import librosa.display
-import soundfile as sf
 import pickle
 
 from tifresi.utils import preprocess_signal
@@ -142,7 +139,6 @@ def get_gaver_sounds(initial_amplitude, impulse_time, filters, total_time, locs=
                              backward_damping_mult=None, forward_damping_mult=None, damping_fade_expo=None, 
                              filter_order=None,
                              session_uuid=''):
-    get_gaver_sounds_start_time = time.time()
     model = st.session_state['model_picked']
 
     signal = gaver_sounds.get_synthetic_sounds(initial_amplitude=initial_amplitude, 
@@ -157,16 +153,6 @@ def get_gaver_sounds(initial_amplitude, impulse_time, filters, total_time, locs=
                                                 filter_order=filter_order)
                         
     signal = signal/np.max(signal)
-
-    # loudness = meter.integrated_loudness(signal)
-    # # loudness normalize audio to -12 dB LUFS
-    # signal = pyln.normalize.loudness(signal, loudness, -14.0)
-
-    os.makedirs(config.query_gan_tmp_audio_loc_path, exist_ok=True)
-    sf.write(f'{config.query_gan_tmp_audio_loc_path}{session_uuid}_temp_signal_loc.wav', signal.astype(float), config.sample_rate)
-    audio_file = open(f'{config.query_gan_tmp_audio_loc_path}{session_uuid}_temp_signal_loc.wav', 'rb')
-    audio_bytes = audio_file.read()
-    
     fig =plt.figure(figsize=(7, 5))
     a=librosa.display.specshow(get_spectrogram(signal)[0],x_axis='time', y_axis='linear',sr=config.sample_rate, hop_length=config.model_list[model]['hop_size'])
     io_buf = io.BytesIO()
@@ -177,9 +163,7 @@ def get_gaver_sounds(initial_amplitude, impulse_time, filters, total_time, locs=
     io_buf.close()
 
     st.session_state['gaver_audio_loc'] = f'{config.query_gan_tmp_audio_loc_path}{session_uuid}_temp_signal_loc.wav'
-    print("--- Time taken to create synthetic ref = %s seconds ---" % (time.time() - get_gaver_sounds_start_time))
-    sample(session_uuid)
-    return audio_bytes, img_arr#, '/tmp/audio-design-toolkit/query_gan/{session_uuid}_temp_signal_loc.wav'
+    return img_arr, signal.astype(float)
 
 @st.cache_data
 def get_model(model):
@@ -217,9 +201,8 @@ def get_model(model):
 def encode_and_reconstruct(audio):
     model = st.session_state['model_picked']
     audio_pghi = preprocess_signal(audio)
-    G = st.session_state['gaver_G']
-    netE = st.session_state['gaver_netE']
-    
+    G, netE = get_model(model)
+
     im_min = config.im_min
     im_max = config.im_max
     pghi_min = config.pghi_min
@@ -227,13 +210,13 @@ def encode_and_reconstruct(audio):
     
     audio_pghi = util.zeropad(audio_pghi, config.n_frames * config.model_list[model]['hop_size'] )
     audio_pghi = util.pghi_stft(audio_pghi, hop_size=config.model_list[model]['hop_size'], stft_channels=config.stft_channels)
-    
+
     if model == 'environmental_sounds':
         audio_pghi = np.clip(audio_pghi + -50*(audio_pghi<(-1*25)), -50, 0)
 
     audio_pghi = util.renormalize(audio_pghi, (np.min(audio_pghi), np.max(audio_pghi)), (im_min, im_max))
 
-    audio_pghi = torch.from_numpy(audio_pghi).float().cuda().unsqueeze(dim=0)
+    audio_pghi = torch.from_numpy(audio_pghi.astype(np.float32)).cuda().unsqueeze(dim=0)
     mask = torch.ones_like(audio_pghi)[:, :1, :, :]
     net_input = torch.cat([audio_pghi, mask], dim=1).cuda()
     
@@ -242,9 +225,6 @@ def encode_and_reconstruct(audio):
         encoded = netE(net_input)
     print("--- Time taken for [encoded = netE(net_input)] = %s seconds ---" % (time.time() - encoded_start))
 
-    # print(encoded.shape)
-    # os.makedirs('../config/resources/sefa-examples', exist_ok=True)
-    # np.save('../config/resources/sefa-examples/w.npy', encoded.cpu().numpy())
 
     reconstructed_audio_start = time.time()
     reconstructed_audio = G.synthesis(torch.stack([encoded] * 14, dim=1))
@@ -255,24 +235,18 @@ def encode_and_reconstruct(audio):
     reconstructed_audio = reconstructed_audio.detach().cpu().numpy()[0]
     reconstructed_audio_wav = util.pghi_istft(reconstructed_audio, hop_size=config.model_list[model]['hop_size'], stft_channels=config.stft_channels)
 
+
+
     loudness_eq_start = time.time()
     loudness = meter.integrated_loudness(reconstructed_audio_wav)
     # loudness normalize audio to -12 dB LUFS
     reconstructed_audio_wav = pyln.normalize.loudness(reconstructed_audio_wav, loudness, -14.0)
     print("--- Time taken to equalize loudness (without soft prior) = %s seconds ---" % (time.time() - loudness_eq_start))
-
     return encoded, reconstructed_audio_wav
 
 
-def sample(session_uuid=''):
-    sample_time_start = time.time()
+def sample(audio):
     model = st.session_state['model_picked']
-    audio_loc = st.session_state['gaver_audio_loc']
-
-    audio, sr = librosa.load(audio_loc, sr=config.sample_rate)
-    G = st.session_state['gaver_G']
-    netE = st.session_state['gaver_netE']
-
     soft_prior_picked = st.session_state['soft_prior_picked']
     try:
         prior_centriod_embedding = np.load(f'../config/resources/prototype/{model}/{soft_prior_picked}.npy')
@@ -284,23 +258,12 @@ def sample(session_uuid=''):
     else:
         encoded, reconstructed_audio_wav = encode_and_reconstruct(audio)
 
-    os.makedirs('/tmp/audio-design-toolkit/query_gan/', exist_ok=True)
-    sf.write(f'/tmp/audio-design-toolkit/query_gan/{session_uuid}_reconstructed_audio_wav_recon.wav', reconstructed_audio_wav.astype(float), config.sample_rate)
-    audio_file = open(f'/tmp/audio-design-toolkit/query_gan/{session_uuid}_reconstructed_audio_wav_recon.wav', 'rb')
-    audio_bytes = audio_file.read()
-    
-    #Uncomment for final study
-    # fig, ax = plt.subplots(nrows=2, figsize=(7,8))
-    # a=librosa.display.specshow(get_spectrogram(reconstructed_audio_wav)[0], x_axis='time', y_axis='linear',sr=config.sample_rate, hop_length=config.model_list[model]['hop_size'], ax=ax[1])
-    # b=librosa.display.waveshow(reconstructed_audio_wav, sr=config.sample_rate, ax=ax[0])
-    # ax[0].set_xlim(0, config.model_list[model]['total_time'])
-    # ax[0].set_xlabel('')
+    img_arr_time_start = time.time()
     fig, ax = plt.subplots(nrows=1, figsize=(7,5))
     a=librosa.display.specshow(get_spectrogram(reconstructed_audio_wav)[0], x_axis='time', y_axis='linear',sr=config.sample_rate, hop_length=config.model_list[model]['hop_size'], ax=ax)
-    b=librosa.display.waveshow(reconstructed_audio_wav, sr=config.sample_rate, ax=ax)
+    # b=librosa.display.waveshow(reconstructed_audio_wav, sr=config.sample_rate, ax=ax)
     ax.set_xlim(0, config.model_list[model]['total_time'])
     ax.set_xlabel('')
-
 
 
     io_buf = io.BytesIO()
@@ -309,10 +272,8 @@ def sample(session_uuid=''):
     img_arr = np.reshape(np.frombuffer(io_buf.getvalue(), dtype=np.uint8),
                         newshape=(int(fig.bbox.bounds[3]), int(fig.bbox.bounds[2]), -1))
     io_buf.close()
-    
-    st.session_state['gaver_audio_bytes'] = audio_bytes
-    st.session_state['gaver_img_arr'] = img_arr
-    print("--- Time taken to encode and reconstruct = %s seconds ---" % (time.time() - sample_time_start))
+    print("--- Time taken to read img_arr = %s seconds ---" % (time.time() - img_arr_time_start))
+    return img_arr, reconstructed_audio_wav
 
 def map_dropdown_name(input):
     return config.model_list[input]['name']
@@ -344,8 +305,7 @@ def get_locs(rate, burst=False, total_time=2.0):
 def encode_and_reconstruct_with_soft_prior(audio, prior_centriod_embedding):
     model = st.session_state['model_picked']
     audio_pghi = preprocess_signal(audio)
-    G = st.session_state['gaver_G']
-    netE = st.session_state['gaver_netE']
+    G, netE = get_model(model)
     
     im_min = config.im_min
     im_max = config.im_max
@@ -357,7 +317,7 @@ def encode_and_reconstruct_with_soft_prior(audio, prior_centriod_embedding):
     audio_pghi = np.clip(audio_pghi + -50*(audio_pghi<(-1*25)), -50, 0)
     audio_pghi = util.renormalize(audio_pghi, (np.min(audio_pghi), np.max(audio_pghi)), (im_min, im_max))
 
-    audio_pghi = torch.from_numpy(audio_pghi).float().cuda().unsqueeze(dim=0)
+    audio_pghi = torch.from_numpy(audio_pghi.astype(np.float32)).cuda().unsqueeze(dim=0)
     mask = torch.ones_like(audio_pghi)[:, :1, :, :]
     net_input = torch.cat([audio_pghi, mask], dim=1).cuda()
     
@@ -369,10 +329,6 @@ def encode_and_reconstruct_with_soft_prior(audio, prior_centriod_embedding):
     if prior_centriod_embedding is not None:
         prior_centriod_embedding = torch.from_numpy(prior_centriod_embedding).cuda().float()
         encoded = encoded + 0.7*(prior_centriod_embedding - encoded) #Soft prior changed line
-
-    # print(encoded.shape)
-    # os.makedirs('../config/resources/sefa-examples', exist_ok=True)
-    # np.save('../config/resources/sefa-examples/w.npy', encoded.cpu().numpy())
 
     reconstructed_audio_start = time.time()
     reconstructed_audio = G.synthesis(torch.stack([encoded] * 14, dim=1))
@@ -401,7 +357,7 @@ def on_select_example_change():
 def main():
     if config.allow_analytics:
         google_analytics.set_google_analytics()
-    st.markdown("<h1 style='text-align: center;'>Exploring Environmental Sound Spaces - 1</h1>", unsafe_allow_html=True)
+    st.markdown("<div style='display: flex;justify-content: center;'><h1 style='text-align: center; width: 500px;'>Exploring Environmental Sound Spaces - 1</h1></div>", unsafe_allow_html=True)
 
     st.markdown(f'''
         <style>
@@ -422,9 +378,6 @@ def main():
         model_names.append(key)
     model_names = tuple(model_names)
     model_picked =  st.sidebar.selectbox('Select Model', model_names, format_func=map_dropdown_name, key='model_picked')
-    G, netE = get_model(model_picked)
-    st.session_state['gaver_G'] = G
-    st.session_state['gaver_netE'] = netE
 
     try:
         example_arr = os.listdir(f'../config/resources/examples/{model_picked}')
@@ -446,13 +399,6 @@ def main():
 
     impact_type = 'hit'
     impulse_time_value = float(config_from_example['impulse_time'] if config_from_example is not None else 0.05)
-    # impulse_time = st.sidebar.slider('Impulse Width', min_value=0.0, max_value=config.model_list[model_picked]['total_time'], value=impulse_time_value, step=0.01,  format=None, key='impulse_width_position', help=None, args=None, kwargs=None, disabled=False)
-    # impulse_time = impulse_time_value
-    # with st.sidebar:
-    #     col1, col2, col3 = st.columns((3,6,3))
-    #     with col2:
-    #         impulse_time = my_component(id_component="impulse_width_position", lowVal=0, highVal=config.model_list[model_picked]['total_time'], value=impulse_time_value, size="medium", knob_type="Oscar", label=True, name="Impulse Width")
-    # print(impulse_time, impulse_time_value)
 
     rate_value = config_from_example['locs'] if config_from_example is not None else 'Very Low'
     impulse_rate_config = []
@@ -474,30 +420,11 @@ def main():
                             value=(trail_lf_value, trail_hf_value))
     
     filter_order_value = float(config_from_example['filter_order'] if config_from_example is not None else 0.0)
-    # filter_order = st.sidebar.slider('Filter Order', min_value=0.0, max_value=5.0, value=filter_order_value, step=1.0,  format=None, key='filter_order_position', help=None, args=None, kwargs=None, disabled=False)
-    # filter_order = filter_order_value
     
     forward_damping_mult_value = float(config_from_example['forward_damping_mult'] if config_from_example is not None else 0.0)
     backward_damping_mult_value = float(config_from_example['backward_damping_mult'] if config_from_example is not None else 0.0)
-    # forward_damping_mult = st.sidebar.slider('Fade In', min_value=0.0, max_value=1.0, value=forward_damping_mult_value, step=0.1,  format=None, key='fdamping_mult_position', help=None, args=None, kwargs=None, disabled=False)
-    # backward_damping_mult = st.sidebar.slider('Fade Out', min_value=0.0, max_value=1.0, value=backward_damping_mult_value, step=0.1,  format=None, key='bdamping_mult_position', help=None, args=None, kwargs=None, disabled=False)
-    # forward_damping_mult = forward_damping_mult_value
-    # backward_damping_mult = backward_damping_mult_value
 
     damping_fade_expo_value = float(config_from_example['damping_fade_expo'] if config_from_example is not None else 1.0)
-    # damping_fade_expo = st.sidebar.slider('Fade Exponent', min_value=0.0, max_value=5.0, value=damping_fade_expo_value, step=1.0,  format=None, key='damping_fade_expo_position', help=None, args=None, kwargs=None, disabled=False)
-    # damping_fade_expo = damping_fade_expo_value
-
-    # with st.sidebar:
-    #     col1, col2 = st.columns((6,6))
-    #     with col1:
-    #         filter_order = my_component(id_component="filter_order_position", lowVal=0, highVal=5, value=filter_order_value, size="medium", knob_type="Oscar", label=True, name="Filter Order")
-    #     with col2:
-    #         damping_fade_expo = my_component(id_component="damping_fade_expo_position", lowVal=0, highVal=5, value=damping_fade_expo_value, size="medium", knob_type="Oscar", label=True, name="Fade Exponent")
-    # print(filter_order, filter_order_value)
-    # print(forward_damping_mult, forward_damping_mult_value)
-
-    # print(impulse_time_value, filter_order_value, damping_fade_expo_value, forward_damping_mult_value, backward_damping_mult_value)
 
     with st.sidebar:
         col1, col2, col3, col4, col5 = st.columns(5)
@@ -514,8 +441,7 @@ def main():
                     )
             if impulse_time == None:
                 impulse_time = impulse_time_value
-            # forward_damping_mult = my_component(id_component="fdamping_mult_position", lowVal=0, highVal=1, value=forward_damping_mult_value, size="medium", knob_type="Oscar", label=True, name="Fade In")
-        
+
         with col2:
             filter_order = my_component(key="filter_order_position", 
                     value=filter_order_value, 
@@ -529,7 +455,6 @@ def main():
                     )
             if filter_order == None:
                 filter_order = filter_order_value
-            # forward_damping_mult = my_component(id_component="fdamping_mult_position", lowVal=0, highVal=1, value=forward_damping_mult_value, size="medium", knob_type="Oscar", label=True, name="Fade In")
 
         with col3:
             damping_fade_expo = my_component(key="damping_fade_expo_position", 
@@ -544,8 +469,7 @@ def main():
                     )
             if damping_fade_expo == None:
                 damping_fade_expo = damping_fade_expo_value
-            # forward_damping_mult = my_component(id_component="fdamping_mult_position", lowVal=0, highVal=1, value=forward_damping_mult_value, size="medium", knob_type="Oscar", label=True, name="Fade In")
-    
+
         with col4:
             forward_damping_mult = my_component(key="fdamping_mult_position", 
                     value=forward_damping_mult_value, 
@@ -559,10 +483,8 @@ def main():
                     )
             if forward_damping_mult == None:
                 forward_damping_mult = forward_damping_mult_value
-            # forward_damping_mult = my_component(id_component="fdamping_mult_position", lowVal=0, highVal=1, value=forward_damping_mult_value, size="medium", knob_type="Oscar", label=True, name="Fade In")
-    
+
         with col5:
-            # st.sidebar.markdown('<div style="font-size: 18px; font-weight: bold; font-family: &quot;Source Sans Pro&quot;, sans-serif; color: var(--text-color);">Fade In</div>', unsafe_allow_html=True)
             backward_damping_mult = my_component(key="bdamping_mult_position", 
                     value=backward_damping_mult_value, 
                     step=0.1,
@@ -575,9 +497,6 @@ def main():
                     )
             if backward_damping_mult == None:
                 backward_damping_mult = backward_damping_mult_value
-            # backward_damping_mult = my_component(id_component="bdamping_mult_position", lowVal=0, highVal=1, value=backward_damping_mult_value, size="medium", knob_type="Oscar", label=True, name="Fade Out")
-    # print(backward_damping_mult, backward_damping_mult_value)
-    # print(damping_fade_expo, damping_fade_expo_value)
     st.sidebar.markdown(horizontal_line, unsafe_allow_html=True)
 
 
@@ -594,11 +513,11 @@ def main():
         is_soft_prior_picked_disabled = True
     else:
         is_soft_prior_picked_disabled = False
-    soft_prior_picked =  st.sidebar.selectbox('Soft Prior', soft_prior_list_extensionless, key='soft_prior_picked', disabled=is_soft_prior_picked_disabled)
+    soft_prior_picked =  st.sidebar.selectbox('Constraint', soft_prior_list_extensionless, key='soft_prior_picked', disabled=is_soft_prior_picked_disabled)
 
     col1, col2, col3 = st.columns((4,1,4))
 
-    s, s_pghi = get_gaver_sounds(initial_amplitude=1.0, hittype=impact_type, total_time=config.model_list[model_picked]['total_time'],\
+    s_pghi, s_audio = get_gaver_sounds(initial_amplitude=1.0, hittype=impact_type, total_time=config.model_list[model_picked]['total_time'],\
                                     impulse_time=impulse_time, sample_rate=config.sample_rate,\
                                     filters=[lf, hf], locs=locs_value,\
                                     filter_order=filter_order, \
@@ -611,15 +530,13 @@ def main():
         st.session_state['gaver_audio_bytes'] = byte_array = bytes([])
         st.session_state['gaver_img_arr'] = np.zeros((500,700,4))
     
-    s_recon = st.session_state['gaver_audio_bytes']
-    s_recon_pghi = st.session_state['gaver_img_arr']
-
+    s_recon_pghi, s_recon_wav = sample(s_audio)#, session_uuid=session_uuid) 
 
     with col1:
         colname = '<div style="padding-left: 30%;"><h3><b><i>Synthetic Reference</i></b></h3></div>'
         st.markdown(colname, unsafe_allow_html=True)
         st.image(s_pghi)
-        st.audio(s, format="audio/wav", start_time=0)
+        st.audio(s_audio, format="audio/wav", start_time=0, sample_rate=config.sample_rate)
     with col2:
         colname = '&nbsp;'
         st.markdown(colname, unsafe_allow_html=True)
@@ -627,19 +544,13 @@ def main():
         colname = '<div style="padding-left: 30%;"><h3><b><i>Reconstructed Audio</i></b></h3></div>'
         st.markdown(colname, unsafe_allow_html=True)
         st.image(s_recon_pghi)
-        st.audio(s_recon, format="audio/wav", start_time=0)#, sample_rate=16000)
-        st.download_button(
-            label="Download Sound",
-            data=s_recon,
-            file_name='Reconstructed_Audio.wav',
-            mime='audio/wav',
-        )
-    # with col3:
-    #     colname = '<div style="padding-left: 30%;"><h3><b><i>Reconstructed Audio</i></b></h3></div>'
-    #     st.markdown(colname, unsafe_allow_html=True)
-    #     st.image(s_recon_pghi)
-    #     st.audio(s_recon, format="audio/wav", start_time=0)#, sample_rate=16000)
-
+        st.audio(s_recon_wav, format="audio/wav", start_time=0, sample_rate=config.sample_rate)
+        # st.download_button(
+        #     label="Download Sound",
+        #     data=s_recon_wav,
+        #     file_name='Reconstructed_Audio.wav',
+        #     mime='audio/wav',
+        # )
 
 if __name__ == '__main__':
     main()

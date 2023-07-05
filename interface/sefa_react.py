@@ -1,8 +1,5 @@
-import requests
 import streamlit as st
 import streamlit.components.v1 as components
-import streamlit_vertical_slider  as svs
-import pandas as pd
 import numpy as np
 import io 
 import matplotlib.pyplot as plt
@@ -11,10 +8,6 @@ import pickle
 import struct
 
 import os
-import re
-from typing import List, Optional
-
-import click
 
 import sys
 sys.path.insert(0, '../')
@@ -28,10 +21,7 @@ import librosa.display
 import soundfile as sf
 
 from utils import util, google_analytics
-from tifresi.utils import load_signal
-from tifresi.utils import preprocess_signal
 from tifresi.stft import GaussTF, GaussTruncTF
-from tifresi.transforms import log_spectrogram
 from tifresi.transforms import inv_log_spectrogram
 
 import time
@@ -42,9 +32,6 @@ warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 import uuid
 from argparse import Namespace
-
-# st.markdown("<h1 style='text-align: center;'>Semantic Factorization (From Computer Vision)</h1>", unsafe_allow_html=True)
-# st.title('Semantic Factorization (From Computer Vision)')
 
 config = util.get_config('../config/config.json')
 config = Namespace(**dict(**config))
@@ -375,7 +362,7 @@ def on_example_change():
 def main():
     if config.allow_analytics:
         google_analytics.set_google_analytics()
-    st.markdown("<h1 style='text-align: center;'>Exploring Environmental Sound Spaces - 2</h1>", unsafe_allow_html=True)
+    st.markdown("<div style='display: flex;justify-content: center;'><h1 style='text-align: center; width: 500px;'>Exploring Environmental Sound Spaces - 2</h1></div>", unsafe_allow_html=True)
 
     st.markdown(f'''
         <style>
@@ -568,14 +555,14 @@ def main():
         slider_6_position, slider_7_position,slider_8_position, slider_9_position,slider_10_position], session_uuid)
     spectrogram_placeholder.image(s[0])
     audio_element = audio_placeholder.audio(s[1], format="audio/wav", start_time=0)
-    col1, col2, col3= st.columns(3)
-    with col2:
-        st.download_button(
-            label="Download Sound",
-            data=s[1],
-            file_name='Algo_2_Audio.wav',
-            mime='audio/wav',
-        )
+    # col1, col2, col3= st.columns(3)
+    # with col2:
+    #     st.download_button(
+    #         label="Download Sound",
+    #         data=s[1],
+    #         file_name='Algo_2_Audio.wav',
+    #         mime='audio/wav',
+    #     )
     # print(audio_element)
     # draw_audio() # Unfortunately audio is not redrawable
     
