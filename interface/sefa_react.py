@@ -1,8 +1,5 @@
-import requests
 import streamlit as st
 import streamlit.components.v1 as components
-import streamlit_vertical_slider  as svs
-import pandas as pd
 import numpy as np
 import io 
 import matplotlib.pyplot as plt
@@ -11,10 +8,6 @@ import pickle
 import struct
 
 import os
-import re
-from typing import List, Optional
-
-import click
 
 import sys
 sys.path.insert(0, '../')
@@ -28,10 +21,7 @@ import librosa.display
 import soundfile as sf
 
 from utils import util, google_analytics
-from tifresi.utils import load_signal
-from tifresi.utils import preprocess_signal
 from tifresi.stft import GaussTF, GaussTruncTF
-from tifresi.transforms import log_spectrogram
 from tifresi.transforms import inv_log_spectrogram
 
 import time
@@ -42,9 +32,6 @@ warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 import uuid
 from argparse import Namespace
-
-# st.markdown("<h1 style='text-align: center;'>Semantic Factorization (From Computer Vision)</h1>", unsafe_allow_html=True)
-# st.title('Semantic Factorization (From Computer Vision)')
 
 config = util.get_config('../config/config.json')
 config = Namespace(**dict(**config))
