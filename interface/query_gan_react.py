@@ -406,8 +406,8 @@ def main():
     st.markdown(f'''
         <style>
             section[data-testid="stSidebar"] {{
-                min-width: 35%;
-                max-width: 35%;
+                min-width: 30%;
+                max-width: 30%;
             }}
             .stDownloadButton {{text-align: center;}}
             .stDownloadButton > button {{background-color: #fafafa; color: rgb(19, 23, 32);}}
