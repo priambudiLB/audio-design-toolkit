@@ -545,12 +545,12 @@ def main():
         st.markdown(colname, unsafe_allow_html=True)
         st.image(s_recon_pghi)
         st.audio(s_recon_wav, format="audio/wav", start_time=0, sample_rate=config.sample_rate)
-        st.download_button(
-            label="Download Sound",
-            data=s_recon_wav,
-            file_name='Reconstructed_Audio.wav',
-            mime='audio/wav',
-        )
+        # st.download_button(
+        #     label="Download Sound",
+        #     data=s_recon_wav,
+        #     file_name='Reconstructed_Audio.wav',
+        #     mime='audio/wav',
+        # )
 
 if __name__ == '__main__':
     main()
