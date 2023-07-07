@@ -273,22 +273,22 @@ def sample(pos, session_uuid=''):
     # ax.set_xlabel('')
 
 
-    io_buf = io.BytesIO()
-    fig.savefig(io_buf, format='raw')
-    io_buf.seek(0)
-    img_arr = np.reshape(np.frombuffer(io_buf.getvalue(), dtype=np.uint8),
-                        newshape=(int(fig.bbox.bounds[3]), int(fig.bbox.bounds[2]), -1))
-    io_buf.close()
+    # io_buf = io.BytesIO()
+    # fig.savefig(io_buf, format='raw')
+    # io_buf.seek(0)
+    # img_arr = np.reshape(np.frombuffer(io_buf.getvalue(), dtype=np.uint8),
+    #                     newshape=(int(fig.bbox.bounds[3]), int(fig.bbox.bounds[2]), -1))
+    # io_buf.close()
 
 
-    os.makedirs(config.sefa_tmp_audio_loc_path, exist_ok=True)
-    sf.write(f'{config.sefa_tmp_audio_loc_path}{session_uuid}_sefa_interface_temp_audio_loc.wav', audio.astype(float), config.sample_rate)
-    # print('--------------------------------------------------')
+    # os.makedirs(config.sefa_tmp_audio_loc_path, exist_ok=True)
+    # sf.write(f'{config.sefa_tmp_audio_loc_path}{session_uuid}_sefa_interface_temp_audio_loc.wav', audio.astype(float), config.sample_rate)
+    # # print('--------------------------------------------------')
 
 
-    audio_file = open(f'{config.sefa_tmp_audio_loc_path}{session_uuid}_sefa_interface_temp_audio_loc.wav', 'rb')
-    audio_bytes = audio_file.read()
-    audio_file.close()
+    # audio_file = open(f'{config.sefa_tmp_audio_loc_path}{session_uuid}_sefa_interface_temp_audio_loc.wav', 'rb')
+    # audio_bytes = audio_file.read()
+    # audio_file.close()
 
     # print(audio_bytes)
     # components.html('test<script>\
@@ -298,7 +298,7 @@ def sample(pos, session_uuid=''):
     #     }\
     #     </script>\
     #     ')
-    return img_arr, audio_bytes
+    return fig, audio
 
 
 def draw_audio():
@@ -553,8 +553,8 @@ def main():
 
     s = sample([slider_1_position, slider_2_position,slider_3_position, slider_4_position,slider_5_position,\
         slider_6_position, slider_7_position,slider_8_position, slider_9_position,slider_10_position], session_uuid)
-    spectrogram_placeholder.image(s[0])
-    audio_element = audio_placeholder.audio(s[1], format="audio/wav", start_time=0)
+    spectrogram_placeholder.pyplot(s[0])
+    audio_element = audio_placeholder.audio(s[1], format="audio/wav", start_time=0, sample_rate=config.sample_rate)
     # col1, col2, col3= st.columns(3)
     # with col2:
     #     st.download_button(

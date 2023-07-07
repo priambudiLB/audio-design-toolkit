@@ -155,15 +155,15 @@ def get_gaver_sounds(initial_amplitude, impulse_time, filters, total_time, locs=
     signal = signal/np.max(signal)
     fig =plt.figure(figsize=(7, 5))
     a=librosa.display.specshow(get_spectrogram(signal)[0],x_axis='time', y_axis='linear',sr=config.sample_rate, hop_length=config.model_list[model]['hop_size'])
-    io_buf = io.BytesIO()
-    fig.savefig(io_buf, format='raw')
-    io_buf.seek(0)
-    img_arr = np.reshape(np.frombuffer(io_buf.getvalue(), dtype=np.uint8),
-                        newshape=(int(fig.bbox.bounds[3]), int(fig.bbox.bounds[2]), -1))
-    io_buf.close()
+    # io_buf = io.BytesIO()
+    # fig.savefig(io_buf, format='raw')
+    # io_buf.seek(0)
+    # img_arr = np.reshape(np.frombuffer(io_buf.getvalue(), dtype=np.uint8),
+    #                     newshape=(int(fig.bbox.bounds[3]), int(fig.bbox.bounds[2]), -1))
+    # io_buf.close()
 
     st.session_state['gaver_audio_loc'] = f'{config.query_gan_tmp_audio_loc_path}{session_uuid}_temp_signal_loc.wav'
-    return img_arr, signal.astype(float)
+    return fig, signal.astype(float)
 
 @st.cache_data
 def get_model(model):
@@ -266,14 +266,14 @@ def sample(audio):
     ax.set_xlabel('')
 
 
-    io_buf = io.BytesIO()
-    fig.savefig(io_buf, format='raw')
-    io_buf.seek(0)
-    img_arr = np.reshape(np.frombuffer(io_buf.getvalue(), dtype=np.uint8),
-                        newshape=(int(fig.bbox.bounds[3]), int(fig.bbox.bounds[2]), -1))
-    io_buf.close()
+    # io_buf = io.BytesIO()
+    # fig.savefig(io_buf, format='raw')
+    # io_buf.seek(0)
+    # img_arr = np.reshape(np.frombuffer(io_buf.getvalue(), dtype=np.uint8),
+    #                     newshape=(int(fig.bbox.bounds[3]), int(fig.bbox.bounds[2]), -1))
+    # io_buf.close()
     print("--- Time taken to read img_arr = %s seconds ---" % (time.time() - img_arr_time_start))
-    return img_arr, reconstructed_audio_wav
+    return fig, reconstructed_audio_wav
 
 def map_dropdown_name(input):
     return config.model_list[input]['name']
@@ -400,11 +400,14 @@ def main():
     impact_type = 'hit'
     impulse_time_value = float(config_from_example['impulse_time'] if config_from_example is not None else 0.05)
 
+    print('********************************************',config_from_example)
+
     rate_value = config_from_example['locs'] if config_from_example is not None else 'Medium'
     impulse_rate_config = []
     for dic in config.impulse_rate:
         impulse_rate_config.append(dic['label'])
-    rate =  st.sidebar.selectbox('Number of Impulses (Rate)', impulse_rate_config, index=impulse_dict[rate_value], key='rate_position',)
+    print('********************************************',rate_value, impulse_dict[rate_value])
+    rate =  st.sidebar.selectbox('Number of Impulses (Rate)', impulse_rate_config, index=impulse_dict[rate_value], key='rate_position')
 
     if 'add_irregularity' not in st.session_state:
         st.session_state['add_irregularity'] = config_from_example['locs_burst'] if config_from_example is not None else False
@@ -530,16 +533,16 @@ def main():
                                     damping_fade_expo=damping_fade_expo,\
                                     session_uuid=session_uuid)
     
-    if 'gaver_audio_bytes' not in st.session_state:
-        st.session_state['gaver_audio_bytes'] = byte_array = bytes([])
-        st.session_state['gaver_img_arr'] = np.zeros((500,700,4))
+    # if 'gaver_audio_bytes' not in st.session_state:
+    #     st.session_state['gaver_audio_bytes'] = byte_array = bytes([])
+    #     st.session_state['gaver_img_arr'] = np.zeros((500,700,4))
     
     s_recon_pghi, s_recon_wav = sample(s_audio)#, session_uuid=session_uuid) 
 
     with col1:
         colname = '<div style="text-align:center"><h3><b><i>Synthetic Reference<br/><span>&nbsp;</span></i></b></h3></div>'
         st.markdown(colname, unsafe_allow_html=True)
-        st.image(s_pghi)
+        st.pyplot(s_pghi)
         st.audio(s_audio, format="audio/wav", start_time=0, sample_rate=config.sample_rate)
     with col2:
         colname = '&nbsp;'
@@ -547,7 +550,7 @@ def main():
     with col3:
         colname = '<div style="padding-left: 0%;text-align: center;"><h3><b><i>AI Generated Sound Matching <br/>Synthetic Reference</i></b></h3></div>'
         st.markdown(colname, unsafe_allow_html=True)
-        st.image(s_recon_pghi)
+        st.pyplot(s_recon_pghi)
         st.audio(s_recon_wav, format="audio/wav", start_time=0, sample_rate=config.sample_rate)
         # st.download_button(
         #     label="Download Sound",
