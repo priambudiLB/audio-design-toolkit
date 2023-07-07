@@ -400,7 +400,7 @@ def main():
     impact_type = 'hit'
     impulse_time_value = float(config_from_example['impulse_time'] if config_from_example is not None else 0.05)
 
-    rate_value = config_from_example['locs'] if config_from_example is not None else 'Very Low'
+    rate_value = config_from_example['locs'] if config_from_example is not None else 'Medium'
     impulse_rate_config = []
     for dic in config.impulse_rate:
         impulse_rate_config.append(dic['label'])
