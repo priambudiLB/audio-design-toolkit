@@ -537,7 +537,7 @@ def main():
     s_recon_pghi, s_recon_wav = sample(s_audio)#, session_uuid=session_uuid) 
 
     with col1:
-        colname = '<div style="padding-left: 30%;"><h3><b><i>Synthetic Reference</i></b></h3></div>'
+        colname = '<div style="text-align:center"><h3><b><i>Synthetic Reference<br/><span>&nbsp;</span></i></b></h3></div>'
         st.markdown(colname, unsafe_allow_html=True)
         st.image(s_pghi)
         st.audio(s_audio, format="audio/wav", start_time=0, sample_rate=config.sample_rate)
@@ -545,7 +545,7 @@ def main():
         colname = '&nbsp;'
         st.markdown(colname, unsafe_allow_html=True)
     with col3:
-        colname = '<div style="padding-left: 30%;"><h3><b><i>Reconstructed Audio</i></b></h3></div>'
+        colname = '<div style="padding-left: 0%;text-align: center;"><h3><b><i>AI Generated Sound Matching <br/>Synthetic Reference</i></b></h3></div>'
         st.markdown(colname, unsafe_allow_html=True)
         st.image(s_recon_pghi)
         st.audio(s_recon_wav, format="audio/wav", start_time=0, sample_rate=config.sample_rate)
