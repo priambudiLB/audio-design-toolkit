@@ -34,6 +34,8 @@ warnings.filterwarnings("ignore", category=DeprecationWarning)
 import uuid
 from argparse import Namespace
 
+st.elements.utils._shown_default_value_warning=True
+
 # st.title('Analysis-Synthesis')
 somehtml = '<h1 style="text-align:center">Analysis-Synthesis In The Latent Space</h1>'
 # st.markdown(somehtml, unsafe_allow_html=True)
@@ -155,15 +157,15 @@ def get_gaver_sounds(initial_amplitude, impulse_time, filters, total_time, locs=
     signal = signal/np.max(signal)
     fig =plt.figure(figsize=(7, 5))
     a=librosa.display.specshow(get_spectrogram(signal)[0],x_axis='time', y_axis='linear',sr=config.sample_rate, hop_length=config.model_list[model]['hop_size'])
-    # io_buf = io.BytesIO()
-    # fig.savefig(io_buf, format='raw')
-    # io_buf.seek(0)
-    # img_arr = np.reshape(np.frombuffer(io_buf.getvalue(), dtype=np.uint8),
-    #                     newshape=(int(fig.bbox.bounds[3]), int(fig.bbox.bounds[2]), -1))
-    # io_buf.close()
+    io_buf = io.BytesIO()
+    fig.savefig(io_buf, format='raw')
+    io_buf.seek(0)
+    img_arr = np.reshape(np.frombuffer(io_buf.getvalue(), dtype=np.uint8),
+                        newshape=(int(fig.bbox.bounds[3]), int(fig.bbox.bounds[2]), -1))
+    io_buf.close()
 
     st.session_state['gaver_audio_loc'] = f'{config.query_gan_tmp_audio_loc_path}{session_uuid}_temp_signal_loc.wav'
-    return fig, signal.astype(float)
+    return img_arr, signal.astype(float)
 
 @st.cache_data
 def get_model(model):
@@ -266,14 +268,14 @@ def sample(audio):
     ax.set_xlabel('')
 
 
-    # io_buf = io.BytesIO()
-    # fig.savefig(io_buf, format='raw')
-    # io_buf.seek(0)
-    # img_arr = np.reshape(np.frombuffer(io_buf.getvalue(), dtype=np.uint8),
-    #                     newshape=(int(fig.bbox.bounds[3]), int(fig.bbox.bounds[2]), -1))
-    # io_buf.close()
+    io_buf = io.BytesIO()
+    fig.savefig(io_buf, format='raw')
+    io_buf.seek(0)
+    img_arr = np.reshape(np.frombuffer(io_buf.getvalue(), dtype=np.uint8),
+                        newshape=(int(fig.bbox.bounds[3]), int(fig.bbox.bounds[2]), -1))
+    io_buf.close()
     print("--- Time taken to read img_arr = %s seconds ---" % (time.time() - img_arr_time_start))
-    return fig, reconstructed_audio_wav
+    return img_arr, reconstructed_audio_wav
 
 def map_dropdown_name(input):
     return config.model_list[input]['name']
@@ -346,13 +348,34 @@ def encode_and_reconstruct_with_soft_prior(audio, prior_centriod_embedding):
     print("--- Time taken to equalize loudness (with soft prior) = %s seconds ---" % (time.time() - loudness_eq_soft_prior_start))
     return encoded, reconstructed_audio_wav
 
+def on_model_change():
+    print('$$$$$$$$$$$$$$$$$$$$$on_model_change')
+    st.session_state.example_picked = '-None-'
+
 def on_select_example_change():
+    print('$$$$$$$$$$$$$$$$$$$$$on_select_example_change')
     try:
-        config_from_example = util.get_config(f'../config/resources/examples/{st.session_state.model_picked}/{st.session_state.example_picked}.json')
+        st.session_state.config_from_example = util.get_config(f'../config/resources/examples/{st.session_state.model_picked}/{st.session_state.example_picked}.json')
     except:
-        config_from_example = None
-    add_irregularity_value = config_from_example['locs_burst'] if config_from_example is not None else False
+        st.session_state.config_from_example = None
+    
+    print('$$$$$$$$$$$$$$$$$$$$$$$$$$',st.session_state.config_from_example)
+    add_irregularity_value = st.session_state.config_from_example['locs_burst'] if st.session_state.config_from_example is not None else False
     st.session_state.add_irregularity = add_irregularity_value
+
+    impulse_rate_config = []
+    for dic in config.impulse_rate:
+        impulse_rate_config.append(dic['label'])
+    rate_value = st.session_state.config_from_example['locs'] if st.session_state.config_from_example is not None else 'Medium'
+    st.session_state.rate_position = rate_value
+
+# def on_select_example_change():
+#     try:
+#         config_from_example = util.get_config(f'../config/resources/examples/{st.session_state.model_picked}/{st.session_state.example_picked}.json')
+#     except:
+#         config_from_example = None
+#     add_irregularity_value = config_from_example['locs_burst'] if config_from_example is not None else False
+#     st.session_state.add_irregularity = add_irregularity_value
 
 def main():
     if config.allow_analytics:
@@ -369,15 +392,22 @@ def main():
             .stDownloadButton > button {{background-color: #fafafa; color: rgb(19, 23, 32);}}
         </style>
     ''',unsafe_allow_html=True)
+    ## Intialize session variables
     if 'session_uuid' not in st.session_state:
         st.session_state['session_uuid'] = str(uuid.uuid4())
     session_uuid = st.session_state['session_uuid']
+
+    if 'config_from_example' not in st.session_state:
+        st.session_state['config_from_example'] = None
+    config_from_example = st.session_state.config_from_example
+    ## Initialization complete
+
 
     model_names = []
     for key in config.model_list:
         model_names.append(key)
     model_names = tuple(model_names)
-    model_picked =  st.sidebar.selectbox('Select Model', model_names, format_func=map_dropdown_name, key='model_picked')
+    model_picked =  st.sidebar.selectbox('Select Model', model_names, format_func=map_dropdown_name, key='model_picked', on_change=on_model_change)
 
     try:
         example_arr = os.listdir(f'../config/resources/examples/{model_picked}')
@@ -388,10 +418,10 @@ def main():
     example_arr_extensionless = sorted(example_arr_extensionless)
     example_picked =  st.sidebar.selectbox('Select Example', example_arr_extensionless, on_change=on_select_example_change, key='example_picked')
     
-    try:
-        config_from_example = util.get_config(f'../config/resources/examples/{model_picked}/{example_picked}.json')
-    except:
-        config_from_example = None
+    # try:
+    #     config_from_example = util.get_config(f'../config/resources/examples/{model_picked}/{example_picked}.json')
+    # except:
+    #     config_from_example = None
 
 
     horizontal_line = '<div style="border: solid #404040 2px; margin-bottom:10%"></div>'
@@ -400,13 +430,11 @@ def main():
     impact_type = 'hit'
     impulse_time_value = float(config_from_example['impulse_time'] if config_from_example is not None else 0.05)
 
-    print('********************************************',config_from_example)
-
-    rate_value = config_from_example['locs'] if config_from_example is not None else 'Medium'
+    
     impulse_rate_config = []
     for dic in config.impulse_rate:
         impulse_rate_config.append(dic['label'])
-    print('********************************************',rate_value, impulse_dict[rate_value])
+    rate_value = config_from_example['locs'] if config_from_example is not None else 'Medium'
     rate =  st.sidebar.selectbox('Number of Impulses (Rate)', impulse_rate_config, index=impulse_dict[rate_value], key='rate_position')
 
     if 'add_irregularity' not in st.session_state:
@@ -416,7 +444,7 @@ def main():
         add_irregularity = st.sidebar.checkbox('Add Irregularity to Rate', key='add_irregularity')
     else:
         add_irregularity = st.session_state['add_irregularity']
-
+    print('%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%', rate_value, st.session_state['rate_position'])
     locs_value = get_locs(rate, add_irregularity, config.model_list[model_picked]['total_time'])
 
     trail_lf_value = config_from_example['trail_lf'] if config_from_example is not None else 1
@@ -542,7 +570,7 @@ def main():
     with col1:
         colname = '<div style="text-align:center"><h3><b><i>Synthetic Reference<br/><span>&nbsp;</span></i></b></h3></div>'
         st.markdown(colname, unsafe_allow_html=True)
-        st.pyplot(s_pghi)
+        st.image(s_pghi)
         st.audio(s_audio, format="audio/wav", start_time=0, sample_rate=config.sample_rate)
     with col2:
         colname = '&nbsp;'
@@ -550,7 +578,7 @@ def main():
     with col3:
         colname = '<div style="padding-left: 0%;text-align: center;"><h3><b><i>AI Generated Sound Matching <br/>Synthetic Reference</i></b></h3></div>'
         st.markdown(colname, unsafe_allow_html=True)
-        st.pyplot(s_recon_pghi)
+        st.image(s_recon_pghi)
         st.audio(s_recon_wav, format="audio/wav", start_time=0, sample_rate=config.sample_rate)
         # st.download_button(
         #     label="Download Sound",

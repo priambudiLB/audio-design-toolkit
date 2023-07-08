@@ -33,6 +33,8 @@ warnings.filterwarnings("ignore", category=DeprecationWarning)
 import uuid
 from argparse import Namespace
 
+st.elements.utils._shown_default_value_warning=True
+
 config = util.get_config('../config/config.json')
 config = Namespace(**dict(**config))
 
