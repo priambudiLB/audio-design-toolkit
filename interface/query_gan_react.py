@@ -587,5 +587,7 @@ def main():
         #     mime='audio/wav',
         # )
 
+    st.markdown('<div style="text-align:center;color:white"><i>All audio samples on this page are generated with a sampling rate of 16kHz.</i></div>', unsafe_allow_html=True)
+
 if __name__ == '__main__':
     main()
