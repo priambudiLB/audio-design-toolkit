@@ -3,3 +3,5 @@ base = "dark"
 font = "sans serif"
 [server]
 baseUrlPath="sound_design"
+[browser]
+gatherUsageStats=false
