@@ -4,5 +4,4 @@ font = "sans serif"
 [server]
 baseUrlPath="sound_design"
 [browser]
-serverAddress=audio-ai.ahlab.org
 gatherUsageStats=false
