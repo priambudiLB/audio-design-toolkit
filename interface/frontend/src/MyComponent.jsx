@@ -7,6 +7,9 @@ import Box from '@material-ui/core/Box'
 import { createTheme } from '@material-ui/core/styles';
 import { Slider } from "@material-ui/core";
 import { ThemeProvider } from '@material-ui/styles';
+import mixpanel from 'mixpanel-browser';
+mixpanel.init('12ae1c3ca5383e7c343f126061a9da67')
+mixpanel.set_config({'persistence': 'localStorage'});
 
 function isInt(n) {
   return n % 1 === 0;
@@ -26,22 +29,33 @@ const debounce = (func, timeout = 1000) => {
   };
 };
 
-const streamlitSetComponentValue = debounce(newValue => {
-  window.dataLayer = window.dataLayer || [];
-  function gtag() {
-    window.dataLayer.push(arguments)
-  }
-  gtag('event', 'parameter_change', {
-    'app_name': 'myAppName',
-    'screen_name': 'Home',
-    'elementId': newValue,
+const streamlitSetComponentValue = debounce((newValue, label, interface_name) => {
+  // window.parent.dataLayer = window.parent.dataLayer || [];
+  // console.log(window.parent.dataLayer)
+  // function gtag() {
+  //   window.parent.dataLayer.push(arguments)
+  //   // dataLayer.push(arguments)
+  // }
+  // gtag('js', new Date());
+  // gtag('config', 'G-PBGSXXLQ12');
+  // gtag('event', 'parameter_change', {
+  //   'app_name': 'myAppName',
+  //   'screen_name': 'Home',
+  //   'elementId': newValue,
+  //   'value': newValue
+  // });
+
+  mixpanel.track('parameter_change', {
+    'app_name': interface_name,
+    'label': label,
     'value': newValue
   });
+  
   return Streamlit.setComponentValue(newValue)
 }, 500)
 
 const VerticalSlider = (props) => {
-  const { label, example, min_value, max_value, value, step, track_color, thumb_color } = props.args;
+  const { interface_name, label, example, min_value, max_value, value, step, track_color, thumb_color } = props.args;
   // const [min_value, max_value, value, step, track_color, slider_color, thumb_color] = [-5, 5, 0, 0.01, "gray", "red", "black"];
   const theme = props.theme
   // const theme = {
@@ -56,7 +70,7 @@ const VerticalSlider = (props) => {
   }, [example, value])
   const handleChange = (_, newValue) => {
     setState(newValue);
-    streamlitSetComponentValue(newValue);
+    streamlitSetComponentValue(newValue, label, interface_name);
   };
 
   // if (state !== value) {

@@ -36,6 +36,7 @@ from argparse import Namespace
 
 st.elements.utils._shown_default_value_warning=True
 
+
 # st.title('Analysis-Synthesis')
 somehtml = '<h1 style="text-align:center">Analysis-Synthesis In The Latent Space</h1>'
 # st.markdown(somehtml, unsafe_allow_html=True)
@@ -61,7 +62,7 @@ def my_component(key,
                 example,
                 thumb_color):
     _component_func = components.declare_component("my_component", path=build_dir)
-    component_value = _component_func(key=key, value=value, step=step, label=label, min_value=min_value, max_value=max_value, track_color=track_color, example=example, thumb_color=thumb_color)
+    component_value = _component_func(interface_name="synthetic sound", key=key, value=value, step=step, label=label, min_value=min_value, max_value=max_value, track_color=track_color, example=example, thumb_color=thumb_color)
     return component_value
 
 def pghi_stft(x):
