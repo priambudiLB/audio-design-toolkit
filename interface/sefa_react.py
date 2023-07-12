@@ -53,7 +53,8 @@ def my_component(key,
                 example,
                 thumb_color):
     _component_func = components.declare_component("my_component", path=build_dir)
-    component_value = _component_func(interface_name="sefa", key=key, value=value, step=step, label=label, min_value=min_value, max_value=max_value, track_color=track_color, example=example, thumb_color=thumb_color)
+    component_value = _component_func(model_name=st.session_state['model_picked'],interface_name="sefa", key=key, value=value, step=step, \
+                                      label=label, min_value=min_value, max_value=max_value, track_color=track_color, example=example, thumb_color=thumb_color)
     return component_value
 
 def pghi_istft(x):

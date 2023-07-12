@@ -29,7 +29,7 @@ const debounce = (func, timeout = 1000) => {
   };
 };
 
-const streamlitSetComponentValue = debounce((newValue, label, interface_name) => {
+const streamlitSetComponentValue = debounce((newValue, label, interface_name, model_name) => {
   // window.parent.dataLayer = window.parent.dataLayer || [];
   // console.log(window.parent.dataLayer)
   // function gtag() {
@@ -47,6 +47,7 @@ const streamlitSetComponentValue = debounce((newValue, label, interface_name) =>
 
   mixpanel.track('parameter_change', {
     'app_name': interface_name,
+    'model_name': model_name,
     'label': label,
     'value': newValue
   });
@@ -55,7 +56,7 @@ const streamlitSetComponentValue = debounce((newValue, label, interface_name) =>
 }, 500)
 
 const VerticalSlider = (props) => {
-  const { interface_name, label, example, min_value, max_value, value, step, track_color, thumb_color } = props.args;
+  const { model_name, interface_name, label, example, min_value, max_value, value, step, track_color, thumb_color } = props.args;
   // const [min_value, max_value, value, step, track_color, slider_color, thumb_color] = [-5, 5, 0, 0.01, "gray", "red", "black"];
   const theme = props.theme
   // const theme = {
@@ -70,7 +71,7 @@ const VerticalSlider = (props) => {
   }, [example, value])
   const handleChange = (_, newValue) => {
     setState(newValue);
-    streamlitSetComponentValue(newValue, label, interface_name);
+    streamlitSetComponentValue(newValue, label, interface_name, model_name);
   };
 
   // if (state !== value) {
