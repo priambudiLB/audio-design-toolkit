@@ -14,3 +14,4 @@ Additional Libraries:
 - lpips                 0.1.4
 - typing-extensions     4.6.3
 - pyloudnorm            0.1.1
+- mixpanel
