@@ -363,9 +363,11 @@ def track_params(label, newValue):
     })
 
 def on_model_change():
+    print('on_model_change')
     st.session_state.example_picked = '-None-'
 
 def on_select_example_change():
+    print('on_select_example_change')
     try:
         st.session_state.config_from_example = util.get_config(f'../config/resources/examples/{st.session_state.model_picked}/{st.session_state.example_picked}.json')
     except:
