@@ -26,6 +26,8 @@ from tifresi.transforms import inv_log_spectrogram
 from scipy.signal import butter, lfilter
 
 import pyloudnorm as pyln
+from mixpanel import Mixpanel
+import argparse
 
 import time
 import warnings
@@ -48,6 +50,7 @@ config = Namespace(**dict(**config))
 impulse_dict = {'Very Low': 0, 'Low': 1, 'Medium': 2, 'High': 3, 'Very High': 4}
 
 meter = pyln.Meter(16000)
+mp = Mixpanel("12ae1c3ca5383e7c343f126061a9da67")
 
 parent_dir = os.path.dirname(os.path.abspath(__file__))
 build_dir = os.path.join(parent_dir, "frontend/build")
@@ -350,18 +353,24 @@ def encode_and_reconstruct_with_soft_prior(audio, prior_centriod_embedding):
     print("--- Time taken to equalize loudness (with soft prior) = %s seconds ---" % (time.time() - loudness_eq_soft_prior_start))
     return encoded, reconstructed_audio_wav
 
+def track_params(label, newValue):
+    mp.track(st.session_state['session_uuid'], 'parameter_change', {
+        'app_name': "synthetic sound",
+        'model_name': st.session_state['model_picked'],
+        'label': label,
+        'value': newValue,
+        'environment': st.session_state['environment']
+    })
+
 def on_model_change():
-    print('$$$$$$$$$$$$$$$$$$$$$on_model_change')
     st.session_state.example_picked = '-None-'
 
 def on_select_example_change():
-    print('$$$$$$$$$$$$$$$$$$$$$on_select_example_change')
     try:
         st.session_state.config_from_example = util.get_config(f'../config/resources/examples/{st.session_state.model_picked}/{st.session_state.example_picked}.json')
     except:
         st.session_state.config_from_example = None
     
-    print('$$$$$$$$$$$$$$$$$$$$$$$$$$',st.session_state.config_from_example)
     add_irregularity_value = st.session_state.config_from_example['locs_burst'] if st.session_state.config_from_example is not None else False
     st.session_state.add_irregularity = add_irregularity_value
 
@@ -370,6 +379,15 @@ def on_select_example_change():
         impulse_rate_config.append(dic['label'])
     rate_value = st.session_state.config_from_example['locs'] if st.session_state.config_from_example is not None else 'Medium'
     st.session_state.rate_position = rate_value
+
+    track_params('example', st.session_state.example_picked)
+
+def on_freq_change():
+    track_params('frequency_band_lf', str(st.session_state.freq_band[0]))
+    track_params('frequency_band_hf', str(st.session_state.freq_band[1]))   
+
+def on_soft_prior_change():
+    track_params('soft_prior_picked', st.session_state['soft_prior_picked'])
 
 # def on_select_example_change():
 #     try:
@@ -402,6 +420,14 @@ def main():
     if 'config_from_example' not in st.session_state:
         st.session_state['config_from_example'] = None
     config_from_example = st.session_state.config_from_example
+
+    if 'environment' not in st.session_state:
+        parser = argparse.ArgumentParser()
+        parser.add_argument('--env', type=str, required=True)
+        args = parser.parse_args()
+        st.session_state['environment'] = str(args.env)
+
+        print(args.env,'*************************************************************************')
     ## Initialization complete
 
 
@@ -446,7 +472,6 @@ def main():
         add_irregularity = st.sidebar.checkbox('Add Irregularity to Rate', key='add_irregularity')
     else:
         add_irregularity = st.session_state['add_irregularity']
-    print('%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%', rate_value, st.session_state['rate_position'])
     locs_value = get_locs(rate, add_irregularity, config.model_list[model_picked]['total_time'])
 
     trail_lf_value = config_from_example['trail_lf'] if config_from_example is not None else 1
@@ -454,7 +479,8 @@ def main():
     lf, hf = st.sidebar.select_slider(
                             'Frequency Band',
                             options=[1, *np.arange(10,7999,10)],
-                            value=(trail_lf_value, trail_hf_value))
+                            value=(trail_lf_value, trail_hf_value), on_change=on_freq_change, key='freq_band')
+    
     
     filter_order_value = float(config_from_example['filter_order'] if config_from_example is not None else 0.0)
     
@@ -550,7 +576,8 @@ def main():
         is_soft_prior_picked_disabled = True
     else:
         is_soft_prior_picked_disabled = False
-    soft_prior_picked =  st.sidebar.selectbox('Constraint', soft_prior_list_extensionless, key='soft_prior_picked', disabled=is_soft_prior_picked_disabled)
+    soft_prior_picked =  st.sidebar.selectbox('Constraint', soft_prior_list_extensionless, key='soft_prior_picked', disabled=is_soft_prior_picked_disabled, on_change=on_soft_prior_change)
+
 
     col1, col2, col3 = st.columns((4,1,4))
 

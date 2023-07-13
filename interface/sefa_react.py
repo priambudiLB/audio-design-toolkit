@@ -26,6 +26,9 @@ from tifresi.transforms import inv_log_spectrogram
 
 import time
 import pyloudnorm as pyln
+from mixpanel import Mixpanel
+import argparse
+
 
 import warnings
 warnings.filterwarnings("ignore", category=DeprecationWarning) 
@@ -39,6 +42,7 @@ config = util.get_config('../config/config.json')
 config = Namespace(**dict(**config))
 
 meter = pyln.Meter(16000)
+mp = Mixpanel("12ae1c3ca5383e7c343f126061a9da67")
 
 parent_dir = os.path.dirname(os.path.abspath(__file__))
 build_dir = os.path.join(parent_dir, "frontend/build")
@@ -334,6 +338,16 @@ def draw_audio():
 #     st.session_state['sefa_slider_1_position'] = 0
 #     st.session_state['sefa_slider_2_position'] = 0
 
+def track_params(label, newValue):
+    mp.track(st.session_state['session_uuid'], 'parameter_change', {
+        'app_name': "sefa",
+        'model_name': st.session_state['model_picked'],
+        'label': label,
+        'value': newValue,
+        'environment': st.session_state['environment']
+    })
+
+
 def map_dropdown_name(input):
     return config.model_list[input]['name']
 
@@ -360,6 +374,8 @@ def on_example_change():
             st.session_state[f'%s_sefa_initial_sample'%model_picked] = torch.from_numpy(config_from_example)
         except:
             config_from_example = None
+    
+    track_params('example', sefa_selected_preset_option)
         
 
 def main():
@@ -380,6 +396,12 @@ def main():
     if 'session_uuid' not in st.session_state:
         st.session_state['session_uuid'] = str(uuid.uuid4())
     session_uuid = st.session_state['session_uuid']
+
+    if 'environment' not in st.session_state:
+        parser = argparse.ArgumentParser()
+        parser.add_argument('--env', type=str, required=True)
+        args = parser.parse_args()
+        st.session_state['environment'] = str(args.env)
 
     model_names = []
     for key in config.model_list:
