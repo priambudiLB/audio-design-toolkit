@@ -67,7 +67,7 @@ const VerticalSlider = (props) => {
   useEffect(() => Streamlit.setFrameHeight());
   useEffect(() => {
     setState(value)
-    Streamlit.setComponentValue(value)
+    // Streamlit.setComponentValue(value)
   }, [example, value])
   const handleChange = (_, newValue) => {
     setState(newValue);
