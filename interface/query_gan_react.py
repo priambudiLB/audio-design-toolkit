@@ -354,6 +354,7 @@ def encode_and_reconstruct_with_soft_prior(audio, prior_centriod_embedding):
     return encoded, reconstructed_audio_wav
 
 def track_params(label, newValue):
+    print('track params ', label)
     mp.track(st.session_state['session_uuid'], 'parameter_change', {
         'app_name': "synthetic sound",
         'model_name': st.session_state['model_picked'],
@@ -364,7 +365,7 @@ def track_params(label, newValue):
 
 def on_model_change():
     print('on_model_change')
-    st.session_state.example_picked = '-None-'
+    #st.session_state.example_picked = '-None-'
 
 def on_select_example_change():
     print('on_select_example_change')
@@ -400,225 +401,229 @@ def on_soft_prior_change():
 #     st.session_state.add_irregularity = add_irregularity_value
 
 def main():
-    if config.allow_analytics:
-        google_analytics.set_google_analytics()
-    st.markdown("<div style='display: flex;justify-content: center;'><h1 style='text-align: center; width: 500px;'>Exploring Environmental Sound Spaces - 1</h1></div>", unsafe_allow_html=True)
+    with st.spinner('Processing... Please Wait...'):
+        if config.allow_analytics:
+            google_analytics.set_google_analytics()
+        st.markdown("<div style='display: flex;justify-content: center;'><h1 style='text-align: center; width: 500px;'>Exploring Environmental Sound Spaces - 1</h1></div>", unsafe_allow_html=True)
 
-    st.markdown(f'''
-        <style>
-            section[data-testid="stSidebar"] {{
-                min-width: 30%;
-                max-width: 30%;
-            }}
-            .stDownloadButton {{text-align: center;}}
-            .stDownloadButton > button {{background-color: #fafafa; color: rgb(19, 23, 32);}}
-        </style>
-    ''',unsafe_allow_html=True)
-    ## Intialize session variables
-    if 'session_uuid' not in st.session_state:
-        st.session_state['session_uuid'] = str(uuid.uuid4())
-    session_uuid = st.session_state['session_uuid']
+        st.markdown(f'''
+            <style>
+                section[data-testid="stSidebar"] {{
+                    min-width: 30%;
+                    max-width: 30%;
+                }}
+                .stDownloadButton {{text-align: center;}}
+                .stDownloadButton > button {{background-color: #fafafa; color: rgb(19, 23, 32);}}
+            </style>
+        ''',unsafe_allow_html=True)
+        ## Intialize session variables
+        if 'session_uuid' not in st.session_state:
+            st.session_state['session_uuid'] = str(uuid.uuid4())
+        session_uuid = st.session_state['session_uuid']
 
-    if 'config_from_example' not in st.session_state:
-        st.session_state['config_from_example'] = None
-    config_from_example = st.session_state.config_from_example
+        if 'config_from_example' not in st.session_state:
+            st.session_state['config_from_example'] = None
+        config_from_example = st.session_state.config_from_example
 
-    if 'environment' not in st.session_state:
-        parser = argparse.ArgumentParser()
-        parser.add_argument('--env', type=str, required=True)
-        args = parser.parse_args()
-        st.session_state['environment'] = str(args.env)
+        if 'environment' not in st.session_state:
+            parser = argparse.ArgumentParser()
+            parser.add_argument('--env', type=str, required=True)
+            args = parser.parse_args()
+            st.session_state['environment'] = str(args.env)
 
-        print(args.env,'*************************************************************************')
-    ## Initialization complete
+            print(args.env,'*************************************************************************')
+        ## Initialization complete
+
+        print('*************reloading**************************')
+        model_names = []
+        for key in config.model_list:
+            model_names.append(key)
+        model_names = tuple(model_names)
+        model_picked =  st.sidebar.selectbox('Select Model', model_names, format_func=map_dropdown_name, key='model_picked', on_change=on_model_change)
+
+        try:
+            print('***********inside try***********')
+            example_arr = os.listdir(f'../config/resources/examples/{model_picked}')
+        except:
+            example_arr = []
+        example_arr_extensionless = [os.path.splitext(file_name)[0] for file_name in example_arr]
+        example_arr_extensionless.insert(0, '-None-')
+        example_arr_extensionless = sorted(example_arr_extensionless)
+        example_picked =  st.sidebar.selectbox('Select Example', example_arr_extensionless, on_change=on_select_example_change, key='example_picked')
+        
+        # try:
+        #     config_from_example = util.get_config(f'../config/resources/examples/{model_picked}/{example_picked}.json')
+        # except:
+        #     config_from_example = None
 
 
-    model_names = []
-    for key in config.model_list:
-        model_names.append(key)
-    model_names = tuple(model_names)
-    model_picked =  st.sidebar.selectbox('Select Model', model_names, format_func=map_dropdown_name, key='model_picked', on_change=on_model_change)
+        horizontal_line = '<div style="border: solid #404040 2px; margin-bottom:10%"></div>'
+        st.sidebar.markdown(horizontal_line, unsafe_allow_html=True)
 
-    try:
-        example_arr = os.listdir(f'../config/resources/examples/{model_picked}')
-    except:
-        example_arr = []
-    example_arr_extensionless = [os.path.splitext(file_name)[0] for file_name in example_arr]
-    example_arr_extensionless.insert(0, '-None-')
-    example_arr_extensionless = sorted(example_arr_extensionless)
-    example_picked =  st.sidebar.selectbox('Select Example', example_arr_extensionless, on_change=on_select_example_change, key='example_picked')
-    
-    # try:
-    #     config_from_example = util.get_config(f'../config/resources/examples/{model_picked}/{example_picked}.json')
-    # except:
-    #     config_from_example = None
+        impact_type = 'hit'
+        impulse_time_value = float(config_from_example['impulse_time'] if config_from_example is not None else 0.05)
+
+        
+        impulse_rate_config = []
+        for dic in config.impulse_rate:
+            impulse_rate_config.append(dic['label'])
+        rate_value = config_from_example['locs'] if config_from_example is not None else 'Medium'
+        rate =  st.sidebar.selectbox('Number of Impulses (Rate)', impulse_rate_config, index=impulse_dict[rate_value], key='rate_position')
+
+        if 'add_irregularity' not in st.session_state:
+            st.session_state['add_irregularity'] = config_from_example['locs_burst'] if config_from_example is not None else False
+        
+        if model_picked=='environmental_sounds':
+            add_irregularity = st.sidebar.checkbox('Add Irregularity to Rate', key='add_irregularity')
+        else:
+            add_irregularity = st.session_state['add_irregularity']
+        locs_value = get_locs(rate, add_irregularity, config.model_list[model_picked]['total_time'])
+
+        trail_lf_value = config_from_example['trail_lf'] if config_from_example is not None else 1
+        trail_hf_value = config_from_example['trail_hf'] if config_from_example is not None else 700
+        lf, hf = st.sidebar.select_slider(
+                                'Frequency Band',
+                                options=[1, *np.arange(10,7999,10)],
+                                value=(trail_lf_value, trail_hf_value), on_change=on_freq_change, key='freq_band')
+        
+        
+        filter_order_value = float(config_from_example['filter_order'] if config_from_example is not None else 0.0)
+        
+        forward_damping_mult_value = float(config_from_example['forward_damping_mult'] if config_from_example is not None else 0.0)
+        backward_damping_mult_value = float(config_from_example['backward_damping_mult'] if config_from_example is not None else 0.0)
+
+        damping_fade_expo_value = float(config_from_example['damping_fade_expo'] if config_from_example is not None else 1.0)
+
+        with st.sidebar:
+            col1, col2, col3, col4, col5 = st.columns(5)
+            with col1:
+                impulse_time = my_component(key="impulse_width_position", 
+                        value=impulse_time_value, 
+                        step=0.01,
+                        min_value=0, 
+                        max_value=config.model_list[model_picked]['total_time'],
+                        track_color="gray",
+                        thumb_color="black",
+                        example=example_picked,
+                        label="Impulse Width"
+                        )
+                if impulse_time == None:
+                    impulse_time = impulse_time_value
+
+            with col2:
+                filter_order = my_component(key="filter_order_position", 
+                        value=filter_order_value, 
+                        step=1,
+                        min_value=0, 
+                        max_value=5,
+                        track_color="gray",
+                        thumb_color="black",
+                        example=example_picked,
+                        label="Filter Order"
+                        )
+                if filter_order == None:
+                    filter_order = filter_order_value
+
+            with col3:
+                damping_fade_expo = my_component(key="damping_fade_expo_position", 
+                        value=damping_fade_expo_value, 
+                        step=1,
+                        min_value=1, 
+                        max_value=5,
+                        track_color="gray",
+                        thumb_color="black",
+                        example=example_picked,
+                        label="Fade Exponent"
+                        )
+                if damping_fade_expo == None:
+                    damping_fade_expo = damping_fade_expo_value
+
+            with col4:
+                forward_damping_mult = my_component(key="fdamping_mult_position", 
+                        value=forward_damping_mult_value, 
+                        step=0.1,
+                        min_value=0, 
+                        max_value=1,
+                        track_color="gray",
+                        thumb_color="black",
+                        example=example_picked,
+                        label="Fade In"
+                        )
+                if forward_damping_mult == None:
+                    forward_damping_mult = forward_damping_mult_value
+
+            with col5:
+                backward_damping_mult = my_component(key="bdamping_mult_position", 
+                        value=backward_damping_mult_value, 
+                        step=0.1,
+                        min_value=0, 
+                        max_value=1,
+                        track_color="gray",
+                        thumb_color="black",
+                        example=example_picked,
+                        label="Fade Out"
+                        )
+                if backward_damping_mult == None:
+                    backward_damping_mult = backward_damping_mult_value
+        st.sidebar.markdown(horizontal_line, unsafe_allow_html=True)
 
 
-    horizontal_line = '<div style="border: solid #404040 2px; margin-bottom:10%"></div>'
-    st.sidebar.markdown(horizontal_line, unsafe_allow_html=True)
+        try:
+            soft_prior_list = os.listdir(f'../config/resources/prototype/{model_picked}')
+        except:
+            soft_prior_list = []
+        soft_prior_list_extensionless = [os.path.splitext(file_name)[0] for file_name in soft_prior_list]
+        soft_prior_list_extensionless = sorted(soft_prior_list_extensionless)
+        soft_prior_list_extensionless.insert(0, 'None')
+        
 
-    impact_type = 'hit'
-    impulse_time_value = float(config_from_example['impulse_time'] if config_from_example is not None else 0.05)
+        if len(soft_prior_list_extensionless) == 1:
+            is_soft_prior_picked_disabled = True
+        else:
+            is_soft_prior_picked_disabled = False
+        soft_prior_picked =  st.sidebar.selectbox('Constraint', soft_prior_list_extensionless, key='soft_prior_picked', disabled=is_soft_prior_picked_disabled, on_change=on_soft_prior_change)
 
-    
-    impulse_rate_config = []
-    for dic in config.impulse_rate:
-        impulse_rate_config.append(dic['label'])
-    rate_value = config_from_example['locs'] if config_from_example is not None else 'Medium'
-    rate =  st.sidebar.selectbox('Number of Impulses (Rate)', impulse_rate_config, index=impulse_dict[rate_value], key='rate_position')
 
-    if 'add_irregularity' not in st.session_state:
-        st.session_state['add_irregularity'] = config_from_example['locs_burst'] if config_from_example is not None else False
-    
-    if model_picked=='environmental_sounds':
-        add_irregularity = st.sidebar.checkbox('Add Irregularity to Rate', key='add_irregularity')
-    else:
-        add_irregularity = st.session_state['add_irregularity']
-    locs_value = get_locs(rate, add_irregularity, config.model_list[model_picked]['total_time'])
+        col1, col2, col3 = st.columns((4,1,4))
 
-    trail_lf_value = config_from_example['trail_lf'] if config_from_example is not None else 1
-    trail_hf_value = config_from_example['trail_hf'] if config_from_example is not None else 700
-    lf, hf = st.sidebar.select_slider(
-                            'Frequency Band',
-                            options=[1, *np.arange(10,7999,10)],
-                            value=(trail_lf_value, trail_hf_value), on_change=on_freq_change, key='freq_band')
-    
-    
-    filter_order_value = float(config_from_example['filter_order'] if config_from_example is not None else 0.0)
-    
-    forward_damping_mult_value = float(config_from_example['forward_damping_mult'] if config_from_example is not None else 0.0)
-    backward_damping_mult_value = float(config_from_example['backward_damping_mult'] if config_from_example is not None else 0.0)
+        s_pghi, s_audio = get_gaver_sounds(initial_amplitude=1.0, hittype=impact_type, total_time=config.model_list[model_picked]['total_time'],\
+                                        impulse_time=impulse_time, sample_rate=config.sample_rate,\
+                                        filters=[lf, hf], locs=locs_value,\
+                                        filter_order=filter_order, \
+                                        forward_damping_mult=forward_damping_mult, \
+                                        backward_damping_mult=backward_damping_mult, \
+                                        damping_fade_expo=damping_fade_expo,\
+                                        session_uuid=session_uuid)
+        
+        # if 'gaver_audio_bytes' not in st.session_state:
+        #     st.session_state['gaver_audio_bytes'] = byte_array = bytes([])
+        #     st.session_state['gaver_img_arr'] = np.zeros((500,700,4))
+        
+        s_recon_pghi, s_recon_wav = sample(s_audio)#, session_uuid=session_uuid) 
 
-    damping_fade_expo_value = float(config_from_example['damping_fade_expo'] if config_from_example is not None else 1.0)
+        print('-----------------writing------------')
 
-    with st.sidebar:
-        col1, col2, col3, col4, col5 = st.columns(5)
         with col1:
-            impulse_time = my_component(key="impulse_width_position", 
-                    value=impulse_time_value, 
-                    step=0.01,
-                    min_value=0, 
-                    max_value=config.model_list[model_picked]['total_time'],
-                    track_color="gray",
-                    thumb_color="black",
-                    example=example_picked,
-                    label="Impulse Width"
-                    )
-            if impulse_time == None:
-                impulse_time = impulse_time_value
-
+            colname = '<div style="text-align:center"><h3><b><i>Synthetic Reference<br/><span>&nbsp;</span></i></b></h3></div>'
+            st.markdown(colname, unsafe_allow_html=True)
+            st.image(s_pghi)
+            st.audio(s_audio, format="audio/wav", start_time=0, sample_rate=config.sample_rate)
         with col2:
-            filter_order = my_component(key="filter_order_position", 
-                    value=filter_order_value, 
-                    step=1,
-                    min_value=0, 
-                    max_value=5,
-                    track_color="gray",
-                    thumb_color="black",
-                    example=example_picked,
-                    label="Filter Order"
-                    )
-            if filter_order == None:
-                filter_order = filter_order_value
-
+            colname = '&nbsp;'
+            st.markdown(colname, unsafe_allow_html=True)
         with col3:
-            damping_fade_expo = my_component(key="damping_fade_expo_position", 
-                    value=damping_fade_expo_value, 
-                    step=1,
-                    min_value=1, 
-                    max_value=5,
-                    track_color="gray",
-                    thumb_color="black",
-                    example=example_picked,
-                    label="Fade Exponent"
-                    )
-            if damping_fade_expo == None:
-                damping_fade_expo = damping_fade_expo_value
+            colname = '<div style="padding-left: 0%;text-align: center;"><h3><b><i>AI Generated Sound Matching <br/>Synthetic Reference</i></b></h3></div>'
+            st.markdown(colname, unsafe_allow_html=True)
+            st.image(s_recon_pghi)
+            st.audio(s_recon_wav, format="audio/wav", start_time=0, sample_rate=config.sample_rate)
+            # st.download_button(
+            #     label="Download Sound",
+            #     data=s_recon_wav,
+            #     file_name='Reconstructed_Audio.wav',
+            #     mime='audio/wav',
+            # )
 
-        with col4:
-            forward_damping_mult = my_component(key="fdamping_mult_position", 
-                    value=forward_damping_mult_value, 
-                    step=0.1,
-                    min_value=0, 
-                    max_value=1,
-                    track_color="gray",
-                    thumb_color="black",
-                    example=example_picked,
-                    label="Fade In"
-                    )
-            if forward_damping_mult == None:
-                forward_damping_mult = forward_damping_mult_value
-
-        with col5:
-            backward_damping_mult = my_component(key="bdamping_mult_position", 
-                    value=backward_damping_mult_value, 
-                    step=0.1,
-                    min_value=0, 
-                    max_value=1,
-                    track_color="gray",
-                    thumb_color="black",
-                    example=example_picked,
-                    label="Fade Out"
-                    )
-            if backward_damping_mult == None:
-                backward_damping_mult = backward_damping_mult_value
-    st.sidebar.markdown(horizontal_line, unsafe_allow_html=True)
-
-
-    try:
-        soft_prior_list = os.listdir(f'../config/resources/prototype/{model_picked}')
-    except:
-        soft_prior_list = []
-    soft_prior_list_extensionless = [os.path.splitext(file_name)[0] for file_name in soft_prior_list]
-    soft_prior_list_extensionless = sorted(soft_prior_list_extensionless)
-    soft_prior_list_extensionless.insert(0, 'None')
-    
-
-    if len(soft_prior_list_extensionless) == 1:
-        is_soft_prior_picked_disabled = True
-    else:
-        is_soft_prior_picked_disabled = False
-    soft_prior_picked =  st.sidebar.selectbox('Constraint', soft_prior_list_extensionless, key='soft_prior_picked', disabled=is_soft_prior_picked_disabled, on_change=on_soft_prior_change)
-
-
-    col1, col2, col3 = st.columns((4,1,4))
-
-    s_pghi, s_audio = get_gaver_sounds(initial_amplitude=1.0, hittype=impact_type, total_time=config.model_list[model_picked]['total_time'],\
-                                    impulse_time=impulse_time, sample_rate=config.sample_rate,\
-                                    filters=[lf, hf], locs=locs_value,\
-                                    filter_order=filter_order, \
-                                    forward_damping_mult=forward_damping_mult, \
-                                    backward_damping_mult=backward_damping_mult, \
-                                    damping_fade_expo=damping_fade_expo,\
-                                    session_uuid=session_uuid)
-    
-    # if 'gaver_audio_bytes' not in st.session_state:
-    #     st.session_state['gaver_audio_bytes'] = byte_array = bytes([])
-    #     st.session_state['gaver_img_arr'] = np.zeros((500,700,4))
-    
-    s_recon_pghi, s_recon_wav = sample(s_audio)#, session_uuid=session_uuid) 
-
-    with col1:
-        colname = '<div style="text-align:center"><h3><b><i>Synthetic Reference<br/><span>&nbsp;</span></i></b></h3></div>'
-        st.markdown(colname, unsafe_allow_html=True)
-        st.image(s_pghi)
-        st.audio(s_audio, format="audio/wav", start_time=0, sample_rate=config.sample_rate)
-    with col2:
-        colname = '&nbsp;'
-        st.markdown(colname, unsafe_allow_html=True)
-    with col3:
-        colname = '<div style="padding-left: 0%;text-align: center;"><h3><b><i>AI Generated Sound Matching <br/>Synthetic Reference</i></b></h3></div>'
-        st.markdown(colname, unsafe_allow_html=True)
-        st.image(s_recon_pghi)
-        st.audio(s_recon_wav, format="audio/wav", start_time=0, sample_rate=config.sample_rate)
-        # st.download_button(
-        #     label="Download Sound",
-        #     data=s_recon_wav,
-        #     file_name='Reconstructed_Audio.wav',
-        #     mime='audio/wav',
-        # )
-
-    st.markdown('<div style="text-align:center;color:white"><i>All audio samples on this page are generated with a sampling rate of 16kHz.</i></div>', unsafe_allow_html=True)
+        st.markdown('<div style="text-align:center;color:white"><i>All audio samples on this page are generated with a sampling rate of 16kHz.</i></div>', unsafe_allow_html=True)
 
 if __name__ == '__main__':
     main()

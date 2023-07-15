@@ -358,7 +358,7 @@ def on_example_change():
 def main():
     if config.allow_analytics:
         google_analytics.set_google_analytics()
-    st.markdown("<h1 style='text-align: center;'>Exploring Environmental Sound Spaces - 2</h1>", unsafe_allow_html=True)
+    st.markdown("<div style='display: flex;justify-content: center;'><h1 style='text-align: center; width: 500px;'>Exploring Environmental Sound Spaces - 2</h1></div>", unsafe_allow_html=True)
 
 
     if 'session_uuid' not in st.session_state:
@@ -413,6 +413,8 @@ def main():
     audio_element = audio_placeholder.audio(s[1], format="audio/wav", start_time=0)
     # print(audio_element)
     # draw_audio() # Unfortunately audio is not redrawable
+
+    st.markdown('<div style="text-align:center;color:white"><i>All audio samples on this page are generated with a sampling rate of 16kHz.</i></div>', unsafe_allow_html=True)
     
 
 if __name__ == '__main__':

@@ -26,6 +26,7 @@ from tifresi.transforms import inv_log_spectrogram
 
 from scipy.signal import butter, lfilter
 import pyloudnorm as pyln
+from mixpanel import Mixpanel
 
 import time
 import warnings
@@ -33,6 +34,9 @@ warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 import uuid
 from argparse import Namespace
+
+st.elements.utils._shown_default_value_warning=True
+
 
 somehtml = '<h1 style="text-align:center">Analysis-Synthesis In The Latent Space</h1>'
 
@@ -42,6 +46,7 @@ config = Namespace(**dict(**config))
 impulse_dict = {'Very Low': 0, 'Low': 1, 'Medium': 2, 'High': 3, 'Very High': 4}
 
 meter = pyln.Meter(16000)
+mp = Mixpanel("12ae1c3ca5383e7c343f126061a9da67")
 
 
 def pghi_stft(x):
@@ -239,12 +244,7 @@ def encode_and_reconstruct(audio):
 
 
 def sample(audio, session_uuid=''):
-    sample_start_time = time.time()
     model = st.session_state['model_picked']
-    audio_loc = st.session_state['gaver_audio_loc']
-
-    # audio, sr = librosa.load(audio_loc, sr=config.sample_rate)
-
     soft_prior_picked = st.session_state['soft_prior_picked']
     try:
         prior_centriod_embedding = np.load(f'../config/resources/prototype/{model}/{soft_prior_picked}.npy')
@@ -256,21 +256,6 @@ def sample(audio, session_uuid=''):
     else:
         encoded, reconstructed_audio_wav = encode_and_reconstruct(audio)
 
-
-    audio_bytes_time_start = time.time()
-    # os.makedirs('/tmp/audio-design-toolkit/query_gan/', exist_ok=True)
-    # sf.write(f'/tmp/audio-design-toolkit/query_gan/{session_uuid}_reconstructed_audio_wav_recon.wav', reconstructed_audio_wav.astype(float), config.sample_rate)
-    # audio_file = open(f'/tmp/audio-design-toolkit/query_gan/{session_uuid}_reconstructed_audio_wav_recon.wav', 'rb')
-    # audio_bytes = audio_file.read()
-    # audio_file.close()
-    # print("--- Time taken to read audio_bytes = %s seconds ---" % (time.time() - audio_bytes_time_start))
-
-    #Uncomment for final study
-    # fig, ax = plt.subplots(nrows=2, figsize=(7,8))
-    # a=librosa.display.specshow(get_spectrogram(reconstructed_audio_wav)[0], x_axis='time', y_axis='linear',sr=config.sample_rate, hop_length=config.model_list[model]['hop_size'], ax=ax[1])
-    # b=librosa.display.waveshow(reconstructed_audio_wav, sr=config.sample_rate, ax=ax[0])
-    # ax[0].set_xlim(0, config.model_list[model]['total_time'])
-    # ax[0].set_xlabel('')
     img_arr_time_start = time.time()
     fig, ax = plt.subplots(nrows=1, figsize=(7,5))
     a=librosa.display.specshow(get_spectrogram(reconstructed_audio_wav)[0], x_axis='time', y_axis='linear',sr=config.sample_rate, hop_length=config.model_list[model]['hop_size'], ax=ax)
@@ -330,7 +315,6 @@ def encode_and_reconstruct_with_soft_prior(audio, prior_centriod_embedding):
     audio_pghi = np.clip(audio_pghi + -50*(audio_pghi<(-1*25)), -50, 0)
     audio_pghi = util.renormalize(audio_pghi, (np.min(audio_pghi), np.max(audio_pghi)), (im_min, im_max))
 
-    #audio_pghi = torch.from_numpy(audio_pghi).float().cuda().unsqueeze(dim=0)
     audio_pghi = torch.from_numpy(audio_pghi.astype(np.float32)).cuda().unsqueeze(dim=0)
     mask = torch.ones_like(audio_pghi)[:, :1, :, :]
     net_input = torch.cat([audio_pghi, mask], dim=1).cuda()
@@ -338,7 +322,7 @@ def encode_and_reconstruct_with_soft_prior(audio, prior_centriod_embedding):
     encoded_start = time.time()
     with torch.no_grad():
         encoded = netE(net_input)
-    print("--- Time taken for [encoded = netE(net_input)] = %s seconds ---" % (time.time() - encoded_start))
+    print("reactless() --- Time taken for [encoded = netE(net_input)] = %s seconds ---" % (time.time() - encoded_start))
 
     if prior_centriod_embedding is not None:
         prior_centriod_embedding = torch.from_numpy(prior_centriod_embedding).cuda().float()
@@ -346,7 +330,7 @@ def encode_and_reconstruct_with_soft_prior(audio, prior_centriod_embedding):
 
     reconstructed_audio_start = time.time()
     reconstructed_audio = G.synthesis(torch.stack([encoded] * 14, dim=1))
-    print("--- Time taken for [reconstructed_audio] = %s seconds ---" % (time.time() - reconstructed_audio_start))
+    print("reactless() --- Time taken for [reconstructed_audio] = %s seconds ---" % (time.time() - reconstructed_audio_start))
     filler = torch.full((1, 1, 1, reconstructed_audio[0].shape[1]), torch.min(reconstructed_audio)).cuda()
     reconstructed_audio = torch.cat([reconstructed_audio, filler], dim=2)
     reconstructed_audio = util.renormalize(reconstructed_audio, (torch.min(reconstructed_audio), torch.max(reconstructed_audio)), (pghi_min, pghi_max))
@@ -357,26 +341,56 @@ def encode_and_reconstruct_with_soft_prior(audio, prior_centriod_embedding):
     loudness = meter.integrated_loudness(reconstructed_audio_wav)
     # loudness normalize audio to -12 dB LUFS
     reconstructed_audio_wav = pyln.normalize.loudness(reconstructed_audio_wav, loudness, -14.0)
-    print("--- Time taken to equalize loudness (with soft prior) = %s seconds ---" % (time.time() - loudness_eq_soft_prior_start))
+    print("reactless() --- Time taken to equalize loudness (with soft prior) = %s seconds ---" % (time.time() - loudness_eq_soft_prior_start))
     return encoded, reconstructed_audio_wav
 
+def track_params(label, newValue):
+    print('reactless() track params')
+    # mp.track(st.session_state['session_uuid'], 'parameter_change', {
+    #     'app_name': "synthetic sound",
+    #     'model_name': st.session_state['model_picked'],
+    #     'label': label,
+    #     'value': newValue,
+    #     'environment': st.session_state['environment']
+    # })
+
+def on_model_change():
+    print('reactless() on_model_change')
+    # st.session_state.example_picked = '-None-'
+
 def on_select_example_change():
+    print('reactless() on_select_example_change')
     try:
-        config_from_example = util.get_config(f'../config/resources/examples/{st.session_state.model_picked}/{st.session_state.example_picked}.json')
+        st.session_state.config_from_example = util.get_config(f'../config/resources/examples/{st.session_state.model_picked}/{st.session_state.example_picked}.json')
     except:
-        config_from_example = None
-    add_irregularity_value = config_from_example['locs_burst'] if config_from_example is not None else False
+        st.session_state.config_from_example = None
+    add_irregularity_value = st.session_state.config_from_example['locs_burst'] if st.session_state.config_from_example is not None else False
     st.session_state.add_irregularity = add_irregularity_value
+
+    track_params('example', st.session_state.example_picked)
+
+def on_freq_change():
+    track_params('frequency_band_lf', str(st.session_state.freq_band[0]))
+    track_params('frequency_band_hf', str(st.session_state.freq_band[1]))   
+
+def on_soft_prior_change():
+    track_params('soft_prior_picked', st.session_state['soft_prior_picked'])
 
 def main():
     if config.allow_analytics:
         google_analytics.set_google_analytics()
-    st.markdown("<h1 style='text-align: center;'>Exploring Environmental Sound Spaces - 1</h1>", unsafe_allow_html=True)
+    st.markdown("<div style='display: flex;justify-content: center;'><h1 style='text-align: center; width: 500px;'>Exploring Environmental Sound Spaces - 1</h1></div>", unsafe_allow_html=True)
 
 
     if 'session_uuid' not in st.session_state:
         st.session_state['session_uuid'] = str(uuid.uuid4())
     session_uuid = st.session_state['session_uuid']
+    #Initialize states
+
+
+
+
+
 
     model_names = []
     for key in config.model_list:
@@ -407,7 +421,7 @@ def main():
     impulse_time_value = float(config_from_example['impulse_time'] if config_from_example is not None else 0.05)
     impulse_time = st.sidebar.slider('Impulse Width', min_value=0.0, max_value=config.model_list[model_picked]['total_time'], value=impulse_time_value, step=0.01,  format=None, key='impulse_width_position', help=None, args=None, kwargs=None, disabled=False)
 
-    rate_value = config_from_example['locs'] if config_from_example is not None else 'Very Low'
+    rate_value = config_from_example['locs'] if config_from_example is not None else 'Medium'
     impulse_rate_config = []
     for dic in config.impulse_rate:
         impulse_rate_config.append(dic['label'])
@@ -424,9 +438,10 @@ def main():
     lf, hf = st.sidebar.select_slider(
                             'Frequency Band',
                             options=[1, *np.arange(10,7999,10)],
-                            value=(trail_lf_value, trail_hf_value))
+                            value=(trail_lf_value, trail_hf_value), on_change=on_freq_change, key='freq_band')
     
     filter_order_value = float(config_from_example['filter_order'] if config_from_example is not None else 0.0)
+    
     filter_order = st.sidebar.slider('Filter Order', min_value=0.0, max_value=5.0, value=filter_order_value, step=1.0,  format=None, key='filter_order_position', help=None, args=None, kwargs=None, disabled=False)
     
     
@@ -456,7 +471,7 @@ def main():
         is_soft_prior_picked_disabled = True
     else:
         is_soft_prior_picked_disabled = False
-    soft_prior_picked =  st.sidebar.selectbox('Constraint', soft_prior_list_extensionless, key='soft_prior_picked', disabled=is_soft_prior_picked_disabled)
+    soft_prior_picked =  st.sidebar.selectbox('Constraint', soft_prior_list_extensionless, key='soft_prior_picked', disabled=is_soft_prior_picked_disabled, on_change=on_soft_prior_change)
 
     col1, col2, col3 = st.columns((4,1,4))
 
@@ -469,15 +484,14 @@ def main():
                                     backward_damping_mult=backward_damping_mult, \
                                     damping_fade_expo=damping_fade_expo,\
                                     session_uuid=session_uuid)
-    print("--- Time taken to gaver_sounds() = %s seconds ---" % (time.time() - gaver_sound_time))
 
     sample_time = time.time()
     s_recon_pghi, s_recon_wav = sample(s_audio, session_uuid=session_uuid) 
     print("--- Time taken to for sample() = %s seconds ---" % (time.time() - sample_time))
 
-
+    print(' (reactless) ------------writing-------------')
     with col1:
-        colname = '<div style="padding-left: 30%;"><h3><b><i>Synthetic Reference</i></b></h3></div>'
+        colname = '<div style="text-align:center"><h3><b><i>Synthetic Reference<br/><span>&nbsp;</span></i></b></h3></div>'
         st.markdown(colname, unsafe_allow_html=True)
         st.image(s_pghi)
         st.audio(s_audio, format="audio/wav", start_time=0, sample_rate=config.sample_rate)
@@ -485,12 +499,12 @@ def main():
         colname = '&nbsp;'
         st.markdown(colname, unsafe_allow_html=True)
     with col3:
-        colname = '<div style="padding-left: 30%;"><h3><b><i>Reconstructed Audio</i></b></h3></div>'
+        colname = '<div style="padding-left: 0%;text-align: center;"><h3><b><i>AI Generated Sound Matching <br/>Synthetic Reference</i></b></h3></div>'
         st.markdown(colname, unsafe_allow_html=True)
         st.image(s_recon_pghi)
         st.audio(s_recon_wav, format="audio/wav", start_time=0, sample_rate=config.sample_rate)
     
-
+    st.markdown('<div style="text-align:center;color:white"><i>All audio samples on this page are generated with a sampling rate of 16kHz.</i></div>', unsafe_allow_html=True)
 
 if __name__ == '__main__':
     main()
