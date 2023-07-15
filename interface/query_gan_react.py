@@ -366,7 +366,8 @@ def track_params(label, newValue):
 
 def on_model_change():
     print('on_model_change')
-    #st.session_state.example_picked = '-None-'
+    st.session_state.example_picked = '-None-'
+    st.session_state.config_from_example = None
 
 def on_select_example_change():
     print('on_select_example_change')
@@ -451,19 +452,19 @@ def main():
         example_arr_extensionless.insert(0, '-None-')
         example_arr_extensionless = sorted(example_arr_extensionless)
         example_picked =  st.sidebar.selectbox('Select Example', example_arr_extensionless, on_change=on_select_example_change, key='example_picked')
-        
+        print('***********after example***********', example_picked)
         # try:
         #     config_from_example = util.get_config(f'../config/resources/examples/{model_picked}/{example_picked}.json')
         # except:
         #     config_from_example = None
-
+        print(config_from_example)
 
         horizontal_line = '<div style="border: solid #404040 2px; margin-bottom:10%"></div>'
         st.sidebar.markdown(horizontal_line, unsafe_allow_html=True)
 
         impact_type = 'hit'
         impulse_time_value = float(config_from_example['impulse_time'] if config_from_example is not None else 0.05)
-
+        print('***********after example***********', impulse_time_value)
         
         impulse_rate_config = []
         for dic in config.impulse_rate:
