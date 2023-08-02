@@ -45,7 +45,7 @@ from argparse import Namespace
 # st.markdown("<h1 style='text-align: center;'>Semantic Factorization (From Computer Vision)</h1>", unsafe_allow_html=True)
 # st.title('Semantic Factorization (From Computer Vision)')
 
-config = util.get_config('../config/config.json')
+config = util.get_config('../interface/frontend/src/config.json')
 config = Namespace(**dict(**config))
 
 meter = pyln.Meter(16000)

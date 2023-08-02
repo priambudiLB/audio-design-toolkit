@@ -18,7 +18,7 @@ warnings.filterwarnings("ignore", category=DeprecationWarning)
 import uuid
 from argparse import Namespace
 
-config = util.get_config('../config/config.json')
+config = util.get_config('../interface/frontend/src/config.json')
 config = Namespace(**dict(**config))
 
 
