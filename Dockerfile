@@ -32,9 +32,7 @@ RUN mv netE_epoch_best.pth checkpoints/encoder/greatesthits
 RUN wget https://guided-control-by-prototypes.s3.ap-southeast-1.amazonaws.com/resources/model_weights/encoder/dcase/netE_epoch_best.pth
 RUN mv netE_epoch_best.pth checkpoints/encoder/dcase
 
-EXPOSE 8501
-
-HEALTHCHECK CMD curl --fail http://localhost:8501/_stcore/health
+EXPOSE 8100
 
 WORKDIR /app/interface
 
