@@ -38,7 +38,7 @@ from argparse import Namespace
 
 st.elements.utils._shown_default_value_warning=True
 
-config = util.get_config('../config/config.json')
+config = util.get_config('../interface/frontend/src/config.json')
 config = Namespace(**dict(**config))
 
 meter = pyln.Meter(16000)

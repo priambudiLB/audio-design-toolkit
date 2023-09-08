@@ -40,7 +40,7 @@ st.elements.utils._shown_default_value_warning=True
 
 somehtml = '<h1 style="text-align:center">Analysis-Synthesis In The Latent Space</h1>'
 
-config = util.get_config('../config/config.json')
+config = util.get_config('../interface/frontend/src/config.json')
 config = Namespace(**dict(**config))
 
 impulse_dict = {'Very Low': 0, 'Low': 1, 'Medium': 2, 'High': 3, 'Very High': 4}

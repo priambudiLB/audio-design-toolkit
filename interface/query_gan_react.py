@@ -44,7 +44,7 @@ somehtml = '<h1 style="text-align:center">Analysis-Synthesis In The Latent Space
 # st.markdown(somehtml, unsafe_allow_html=True)
 # st.title("Analysis-Synthesis In The Latent Space")
 
-config = util.get_config('../config/config.json')
+config = util.get_config('../interface/frontend/src/config.json')
 config = Namespace(**dict(**config))
 
 impulse_dict = {'Very Low': 0, 'Low': 1, 'Medium': 2, 'High': 3, 'Very High': 4}

@@ -50,7 +50,7 @@ class AverageMeter(object):
         fmtstr = '{name} {val' + self.fmt + '} ({avg' + self.fmt + '})'
         return fmtstr.format(**self.__dict__)
 
-def get_config(filepath='config/config.json'):
+def get_config(filepath='interface/frontend/src/config.json'):
     config = {}
     with open(filepath, 'r') as f:
         config = json.load(f)
