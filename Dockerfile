@@ -13,24 +13,25 @@ RUN apt-get update && apt-get install -y \
     libsndfile-dev \
     cmake \
     wget \
-    && rm -rf /var/lib/apt/lists/*
-
-RUN pip install --upgrade pip
-RUN pip install cython==0.29.19
-RUN pip install tifresi==0.1.2
+    && rm -rf /var/lib/apt/lists/* \
+    && pip install --upgrade pip \
+    && pip install cython==0.29.19 \
+    && pip install tifresi==0.1.2 \
+    && pip install torch==1.10.0+cu111 torchvision==0.11.0+cu111 torchaudio==0.10.0 -f https://download.pytorch.org/whl/torch_stable.html
 
 COPY requirements.txt ./
 RUN pip install -r requirements.txt
 
 COPY . ./
-RUN wget https://guided-control-by-prototypes.s3.ap-southeast-1.amazonaws.com/resources/model_weights/audio-stylegan2/greatesthits/network-snapshot-002800.pkl
-RUN mv network-snapshot-002800.pkl checkpoints/stylegan2/greatesthits
-RUN wget https://guided-control-by-prototypes.s3.ap-southeast-1.amazonaws.com/resources/model_weights/audio-stylegan2/dcase/network-snapshot-002200.pkl
-RUN mv network-snapshot-002200.pkl checkpoints/stylegan2/dcase
-RUN wget https://guided-control-by-prototypes.s3.ap-southeast-1.amazonaws.com/resources/model_weights/encoder/greatesthits/netE_epoch_best.pth
-RUN mv netE_epoch_best.pth checkpoints/encoder/greatesthits
-RUN wget https://guided-control-by-prototypes.s3.ap-southeast-1.amazonaws.com/resources/model_weights/encoder/dcase/netE_epoch_best.pth
-RUN mv netE_epoch_best.pth checkpoints/encoder/dcase
+
+RUN mkdir -p checkpoints/stylegan2/greatesthits \
+    checkpoints/stylegan2/dcase \
+    checkpoints/encoder/greatesthits \
+    checkpoints/encoder/dcase \
+    && wget https://guided-control-by-prototypes.s3.ap-southeast-1.amazonaws.com/resources/model_weights/audio-stylegan2/greatesthits/network-snapshot-002800.pkl -P checkpoints/stylegan2/greatesthits \
+    && wget https://guided-control-by-prototypes.s3.ap-southeast-1.amazonaws.com/resources/model_weights/audio-stylegan2/dcase/network-snapshot-002200.pkl -P checkpoints/stylegan2/dcase \
+    && wget https://guided-control-by-prototypes.s3.ap-southeast-1.amazonaws.com/resources/model_weights/encoder/greatesthits/netE_epoch_best.pth -P checkpoints/encoder/greatesthits \
+    && wget https://guided-control-by-prototypes.s3.ap-southeast-1.amazonaws.com/resources/model_weights/encoder/dcase/netE_epoch_best.pth -P checkpoints/encoder/dcase
 
 EXPOSE 8100
 

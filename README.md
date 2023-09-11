@@ -1,8 +1,10 @@
 # Audio Design Toolkit
 
+<p float="center">
+  <img src="screenshots/interface-1.png" width="49%" />
+  <img src="screenshots/interface-2.png" width="49%" /> 
+</p>
 
-![Interface 1](screenshots/interface-1.png)
-![Interface 2](screenshots/interface-2.png)
 
 Multipage app. 
 
@@ -28,8 +30,9 @@ This guide provides instructions on how to run the application using Docker, a c
 
 Before you can run the project using Docker, make sure you have the following prerequisites installed on your system:
 - [Docker](https://www.docker.com/get-started) - Download and install Docker for your operating system.
+- CUDA 11.0 minimum.
 
-Our Docker Image takes up roughly **7.5 GB** of space.
+Our Docker Image takes up roughly **11 GB** of space.
 
 ### Getting Started
 1. Clone the project repository to your local machine:
