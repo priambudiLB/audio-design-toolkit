@@ -1,8 +1,8 @@
 # Audio Design Toolkit
 
 <p float="center">
-  <img src="screenshots/interface-1.png" width="49%" />
-  <img src="screenshots/interface-2.png" width="49%" /> 
+  <img src="../screenshots/interface-1.png" width="49%" />
+  <img src="../screenshots/interface-2.png" width="49%" /> 
 </p>
 
 
